@@ -1,0 +1,21 @@
+{
+  "name": "pathforge-ai",
+  "version": "1.0.0",
+  "description": "PathForge AI — Reverse-Engineered Career Roadmapper",
+  "scripts": {
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:server && npm run build:client"
+  },
+  "keywords": [
+    "hackathon",
+    "career-roadmap",
+    "react-flow",
+    "dag",
+    "generative-ai"
+  ],
+  "author": "",
+  "license": "MIT"
+}
