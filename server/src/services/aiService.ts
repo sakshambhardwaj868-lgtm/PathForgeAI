@@ -5,7 +5,7 @@ import { validateAndSanitizeRoadmap } from '../schemas/roadmapSchema';
 import { FallbackService } from './fallbackService';
 
 export class AiService {
-  private static readonly API_TIMEOUT_MS = 25000; // 25-second timeout guard for complex DAG synthesis
+  private static readonly API_TIMEOUT_MS = 45000; // 45-second timeout guard for complex DAG synthesis
 
   /**
    * Generates a structured career roadmap DAG using Gemini 3.8 Flash,
@@ -170,61 +170,84 @@ Synthesize the complete structured career roadmap.`;
       },
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.API_TIMEOUT_MS);
+    const MAX_RETRIES = 2; // Up to 2 retries (3 total attempts)
+    let lastError: Error = new Error('Gemini API call failed.');
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': env.GEMINI_API_KEY!,
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
+    for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.API_TIMEOUT_MS);
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API returned HTTP ${response.status}: ${errorText.slice(0, 200)}`);
-      }
-
-      const responseData = (await response.json()) as any;
-      const generatedText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!generatedText) {
-        throw new Error('Gemini API response contained no candidate text.');
-      }
-
-      let parsedJson: any;
       try {
-        parsedJson = JSON.parse(generatedText);
-      } catch (parseError: any) {
-        throw new Error(`Failed to parse AI output as JSON: ${parseError.message}`);
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': env.GEMINI_API_KEY!,
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          if ((response.status === 503 || response.status === 429) && attempt <= MAX_RETRIES) {
+            const backoffMs = attempt * 1500;
+            console.warn(`[AiService] Gemini API returned HTTP ${response.status} (attempt ${attempt}/${MAX_RETRIES + 1}). Retrying in ${backoffMs}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            continue;
+          }
+          throw new Error(`Gemini API returned HTTP ${response.status}: ${errorText.slice(0, 200)}`);
+        }
+
+        const responseData = (await response.json()) as any;
+        const generatedText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!generatedText) {
+          throw new Error('Gemini API response contained no candidate text.');
+        }
+
+        let parsedJson: any;
+        try {
+          parsedJson = JSON.parse(generatedText);
+        } catch (parseError: any) {
+          throw new Error(`Failed to parse AI output as JSON: ${parseError.message}`);
+        }
+
+        // Ensure user input overrides
+        parsedJson.targetRole = targetRole;
+        parsedJson.targetCompanyType = targetCompanyType || 'Tech Company';
+        parsedJson.experienceLevel = experienceLevel;
+        parsedJson.weeklyCommitmentHours = weeklyCommitmentHours;
+
+        // Validate with Zod + Cycle Detector + Prerequisite Verifier
+        const validated = validateAndSanitizeRoadmap(parsedJson, 'live_ai');
+
+        if (!validated.success) {
+          throw new Error(`Graph validation rejected AI output: ${validated.errors.join('; ')}`);
+        }
+
+        return validated.data;
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          lastError = new Error(`Gemini API call exceeded timeout threshold of ${this.API_TIMEOUT_MS}ms.`);
+        } else {
+          lastError = fetchErr;
+        }
+
+        if (attempt <= MAX_RETRIES) {
+          const backoffMs = attempt * 1500;
+          console.warn(`[AiService] Gemini attempt ${attempt} failed (${lastError.message}). Retrying in ${backoffMs}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+
+        throw lastError;
       }
-
-      // Ensure user input overrides
-      parsedJson.targetRole = targetRole;
-      parsedJson.targetCompanyType = targetCompanyType || 'Tech Company';
-      parsedJson.experienceLevel = experienceLevel;
-      parsedJson.weeklyCommitmentHours = weeklyCommitmentHours;
-
-      // Validate with Zod + Cycle Detector + Prerequisite Verifier
-      const validated = validateAndSanitizeRoadmap(parsedJson, 'live_ai');
-
-      if (!validated.success) {
-        throw new Error(`Graph validation rejected AI output: ${validated.errors.join('; ')}`);
-      }
-
-      return validated.data;
-    } catch (fetchErr: any) {
-      clearTimeout(timeoutId);
-      if (fetchErr.name === 'AbortError') {
-        throw new Error(`Gemini API call exceeded timeout threshold of ${this.API_TIMEOUT_MS}ms.`);
-      }
-      throw fetchErr;
     }
+
+    throw lastError || new Error('All Gemini API attempts failed.');
   }
 }
