@@ -4,6 +4,9 @@ import helmet from 'helmet';
 import { env } from './config/env';
 import { healthRouter } from './routes/healthRoutes';
 import { roadmapRouter } from './routes/roadmapRoutes';
+import { authRouter } from './routes/authRoutes';
+import { roadmapPersistenceRouter } from './routes/roadmapPersistenceRoutes';
+import { shareRouter } from './routes/shareRoutes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -23,7 +26,10 @@ export const createApp = (): Express => {
 
   // Route Mounting
   app.use('/api/v1', healthRouter);
+  app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/roadmap', roadmapRouter);
+  app.use('/api/v1/roadmaps', roadmapPersistenceRouter);
+  app.use('/api/v1/shares', shareRouter);
 
   // 404 Handler
   app.use((_req: Request, res: Response) => {

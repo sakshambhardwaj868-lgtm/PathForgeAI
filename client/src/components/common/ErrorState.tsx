@@ -8,15 +8,10 @@ interface ErrorStateProps {
 }
 
 export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => {
-  const generateRoadmap = useRoadmapStore((s) => s.generateRoadmap);
+  const loadOfflineFallback = useRoadmapStore((s) => s.loadOfflineFallback);
 
-  const handleLoadFallback = async () => {
-    await generateRoadmap({
-      targetRole: 'Full Stack Developer at a Climate Tech Startup',
-      targetCompanyType: 'Clean Energy Series-A',
-      experienceLevel: 'Beginner',
-      weeklyCommitmentHours: 15,
-    });
+  const handleLoadFallback = () => {
+    loadOfflineFallback();
   };
 
   return (

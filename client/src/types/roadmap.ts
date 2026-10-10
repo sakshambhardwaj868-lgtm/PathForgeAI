@@ -17,4 +17,9 @@ export type {
   GenerateRoadmapRequest,
   ApiResponse,
   RoadmapProgressMetrics,
+  CreateShareRequest,
+  ShareSummary,
+  CreateShareResponseData,
+  PublicShareInfo,
+  PublicSharedRoadmapResponse,
 } from '../../../shared/types/roadmap';

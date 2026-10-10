@@ -16,11 +16,44 @@ export type NodeStatus = 'locked' | 'available' | 'completed' | 'completed_with_
 
 export type MilestoneCategory = 'foundation' | 'core-skill' | 'tooling' | 'capstone' | 'career-prep';
 
+export interface TopicLesson {
+  id: string; // e.g. "lesson-1"
+  title: string;
+  durationMinutes: number; // estimated duration in minutes
+  explanation: string; // clear narrative concept explanation
+  studySteps: string[]; // step-by-step actionable learning steps
+  practiceActivity: string; // specific hands-on coding/design practice task
+  completionCriteria: string; // concrete proof of topic mastery
+}
+
+export interface CurriculumTopic {
+  title: string;
+  subtopics: string[];
+}
+
+export interface PracticalExercise {
+  id: string;
+  title: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  instructions: string;
+  hints?: string[];
+  solutionOverview?: string;
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+}
+
 export interface WeekendProject {
   title: string;
   description: string;
   deliverables: string[];
   estimatedHours: number;
+  tasks?: string[]; // step-by-step implementation tasks
+  acceptanceCriteria?: string[]; // clear pass/fail acceptance requirements
 }
 
 export interface CuratedResource {
@@ -34,13 +67,22 @@ export interface InterviewChallenge {
   question: string;
   idealAnswerKey: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  explanation?: string;
 }
 
 export interface MilestoneActionableData {
   learningObjectives: string[];
+  whyItMatters?: string;
+  difficultyLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
+  learningOutcomes?: string[];
+  topics?: CurriculumTopic[];
+  lessons?: TopicLesson[];
+  practicalExercises?: PracticalExercise[];
   weekendProject: WeekendProject;
   curatedResources: CuratedResource[];
   interviewChallenges: InterviewChallenge[];
+  quizQuestions?: QuizQuestion[];
+  completionCriteria?: string[];
 }
 
 export interface RoadmapMilestone {
@@ -116,4 +158,41 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   details?: Record<string, string[]>;
+}
+
+export interface CreateShareRequest {
+  expiresInDays?: number | null;
+  label?: string;
+}
+
+export interface ShareSummary {
+  id: string;
+  tokenPrefix: string;
+  label?: string;
+  expiresAt: string | null;
+  isRevoked: boolean;
+  revokedAt?: string | null;
+  viewCount: number;
+  createdAt: string;
+}
+
+export interface CreateShareResponseData {
+  id: string;
+  shareUrl: string;
+  tokenPrefix: string;
+  label?: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface PublicShareInfo {
+  label?: string;
+  ownerName: string;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
+export interface PublicSharedRoadmapResponse {
+  shareInfo: PublicShareInfo;
+  roadmap: CareerRoadmap;
 }

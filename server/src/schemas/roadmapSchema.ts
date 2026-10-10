@@ -1,11 +1,44 @@
 import { z } from 'zod';
 import { CareerRoadmap, RoadmapMilestone, RoadmapEdge } from '../types/roadmap';
 
+export const topicLessonSchema = z.object({
+  id: z.string(),
+  title: z.string().min(2),
+  durationMinutes: z.number().int().positive().default(45),
+  explanation: z.string().min(10),
+  studySteps: z.array(z.string().min(2)).default([]),
+  practiceActivity: z.string().min(3),
+  completionCriteria: z.string().min(3),
+});
+
+export const curriculumTopicSchema = z.object({
+  title: z.string().min(2),
+  subtopics: z.array(z.string().min(1)).default([]),
+});
+
+export const practicalExerciseSchema = z.object({
+  id: z.string(),
+  title: z.string().min(2),
+  difficulty: z.enum(['Beginner', 'Intermediate', 'Advanced']).default('Beginner'),
+  instructions: z.string().min(5),
+  hints: z.array(z.string()).optional().default([]),
+  solutionOverview: z.string().optional(),
+});
+
+export const quizQuestionSchema = z.object({
+  question: z.string().min(5),
+  options: z.array(z.string().min(1)).min(2),
+  correctAnswerIndex: z.number().int().min(0),
+  explanation: z.string().min(5),
+});
+
 export const weekendProjectSchema = z.object({
   title: z.string().min(3),
   description: z.string().min(10),
   deliverables: z.array(z.string().min(2)).min(1),
   estimatedHours: z.number().positive().max(50),
+  tasks: z.array(z.string()).optional().default([]),
+  acceptanceCriteria: z.array(z.string()).optional().default([]),
 });
 
 export const curatedResourceSchema = z.object({
@@ -19,13 +52,22 @@ export const interviewChallengeSchema = z.object({
   question: z.string().min(5),
   idealAnswerKey: z.string().min(10),
   difficulty: z.enum(['Easy', 'Medium', 'Hard']),
+  explanation: z.string().optional(),
 });
 
 export const actionableDataSchema = z.object({
-  learningObjectives: z.array(z.string().min(5)).min(1),
+  learningObjectives: z.array(z.string().min(2)).min(1),
+  whyItMatters: z.string().optional().default(''),
+  difficultyLevel: z.enum(['Beginner', 'Intermediate', 'Advanced']).optional().default('Beginner'),
+  learningOutcomes: z.array(z.string()).optional().default([]),
+  topics: z.array(curriculumTopicSchema).optional().default([]),
+  lessons: z.array(topicLessonSchema).optional().default([]),
+  practicalExercises: z.array(practicalExerciseSchema).optional().default([]),
   weekendProject: weekendProjectSchema,
   curatedResources: z.array(curatedResourceSchema).min(1),
   interviewChallenges: z.array(interviewChallengeSchema).min(1),
+  quizQuestions: z.array(quizQuestionSchema).optional().default([]),
+  completionCriteria: z.array(z.string()).optional().default([]),
 });
 
 export const roadmapMilestoneSchema = z.object({

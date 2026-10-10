@@ -24,7 +24,7 @@ export class FallbackService {
     weeklyCommitmentHours: number = 15,
     experienceLevel: 'Beginner' | 'Intermediate' | 'Advanced' = 'Beginner'
   ): CareerRoadmap {
-    const roleLower = targetRole.toLowerCase();
+    const roleLower = String(targetRole || '').toLowerCase();
     let filename = 'climate-tech.json'; // Default fallback
 
     if (roleLower.includes('design') || roleLower.includes('ux') || roleLower.includes('ui') || roleLower.includes('fintech')) {

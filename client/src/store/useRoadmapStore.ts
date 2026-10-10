@@ -9,6 +9,8 @@ import {
 } from '../types/roadmap';
 import { getLayoutedRoadmap } from '../utils/dagreLayout';
 import { recalculateRoadmapState } from '../utils/replanEngine';
+import { safeFetchJson } from '../services/apiClient';
+import { getClientOfflineFallback } from '../data/fallbackService';
 
 const DEFAULT_METRICS: RoadmapProgressMetrics = {
   totalMilestones: 0,
@@ -32,6 +34,14 @@ interface RoadmapStoreState {
   isLoading: boolean;
   error: string | null;
   activeFilter: string; // 'all' or category
+  isReadOnly: boolean;
+  sharedMetadata: {
+    ownerName: string;
+    createdAt: string;
+    expiresAt: string | null;
+    label?: string;
+  } | null;
+  shareError: string | null;
 
   // Actions
   setRoadmap: (roadmap: CareerRoadmap) => void;
@@ -40,9 +50,12 @@ interface RoadmapStoreState {
   setActiveFilter: (filter: string) => void;
   clearRoadmap: () => void;
   generateRoadmap: (input: GenerateRoadmapRequest) => Promise<boolean>;
+  loadOfflineFallback: (targetRole?: string) => void;
   toggleMilestoneKnown: (milestoneId: string) => void;
   resetAllProgress: () => void;
   markAllCompleted: () => void;
+  loadSharedRoadmap: (token: string) => Promise<boolean>;
+  exitSharedView: () => void;
 }
 
 export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
@@ -55,6 +68,9 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   isLoading: false,
   error: null,
   activeFilter: 'all',
+  isReadOnly: false,
+  sharedMetadata: null,
+  shareError: null,
 
   setRoadmap: (rawRoadmap: CareerRoadmap) => {
     const { layoutDirection } = get();
@@ -67,6 +83,9 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       edges,
       metrics,
       selectedMilestoneId: roadmap.milestones[0]?.id || null,
+      isReadOnly: false,
+      sharedMetadata: null,
+      shareError: null,
       error: null,
     });
   },
@@ -107,49 +126,71 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   generateRoadmap: async (input: GenerateRoadmapRequest): Promise<boolean> => {
     set({ isLoading: true, error: null });
 
-    try {
-      const response = await fetch('/api/v1/roadmap/generate', {
+    const fetchResult = await safeFetchJson<ApiResponse<CareerRoadmap>>(
+      '/api/v1/roadmap/generate',
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
-      });
-
-      const result = (await response.json()) as ApiResponse<CareerRoadmap>;
-
-      if (!response.ok || !result.success || !result.data) {
-        const errorMsg = result.error || 'Failed to generate career roadmap. Please try again.';
-        set({ isLoading: false, error: errorMsg });
-        return false;
       }
+    );
 
-      const rawRoadmap = result.data;
-      const { layoutDirection } = get();
-      const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
-      const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
-
-      set({
-        roadmap,
-        nodes,
-        edges,
-        metrics,
-        selectedMilestoneId: roadmap.milestones[0]?.id || null,
-        isLoading: false,
-        error: null,
-      });
-
-      return true;
-    } catch (err: any) {
-      set({
-        isLoading: false,
-        error: err.message || 'Network connection failed while contacting PathForge API.',
-      });
+    if (!fetchResult.ok || !fetchResult.data?.success || !fetchResult.data?.data) {
+      const errorMsg =
+        fetchResult.error ||
+        fetchResult.data?.error ||
+        'Failed to generate career roadmap. Please check backend connection or load offline fallback.';
+      set({ isLoading: false, error: errorMsg });
       return false;
     }
+
+    const rawRoadmap = fetchResult.data.data;
+    const { layoutDirection } = get();
+    const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
+    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+
+    set({
+      roadmap,
+      nodes,
+      edges,
+      metrics,
+      selectedMilestoneId: roadmap.milestones[0]?.id || null,
+      isLoading: false,
+      error: null,
+    });
+
+    return true;
+  },
+
+  loadOfflineFallback: (targetRole?: string) => {
+    const { layoutDirection, roadmap: currentRoadmap } = get();
+    const role =
+      targetRole ||
+      currentRoadmap?.targetRole ||
+      'Full Stack Developer at a Climate Tech Startup';
+    const rawFallback = getClientOfflineFallback(
+      role,
+      currentRoadmap?.weeklyCommitmentHours || 15,
+      currentRoadmap?.experienceLevel || 'Beginner'
+    );
+
+    const { roadmap, metrics } = recalculateRoadmapState(rawFallback);
+    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+
+    set({
+      roadmap,
+      nodes,
+      edges,
+      metrics,
+      selectedMilestoneId: roadmap.milestones[0]?.id || null,
+      isLoading: false,
+      error: null,
+    });
   },
 
   toggleMilestoneKnown: (milestoneId: string) => {
-    const { roadmap, layoutDirection } = get();
-    if (!roadmap) return;
+    const { roadmap, layoutDirection, isReadOnly } = get();
+    if (!roadmap || isReadOnly) return;
 
     // 1. Invert isKnown for the target milestone
     const intermediateMilestones: RoadmapMilestone[] = roadmap.milestones.map((m) => {
@@ -178,8 +219,8 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   },
 
   resetAllProgress: () => {
-    const { roadmap, layoutDirection } = get();
-    if (!roadmap) return;
+    const { roadmap, layoutDirection, isReadOnly } = get();
+    if (!roadmap || isReadOnly) return;
 
     const clearedMilestones = roadmap.milestones.map((m) => ({
       ...m,
@@ -199,8 +240,8 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   },
 
   markAllCompleted: () => {
-    const { roadmap, layoutDirection } = get();
-    if (!roadmap) return;
+    const { roadmap, layoutDirection, isReadOnly } = get();
+    if (!roadmap || isReadOnly) return;
 
     const completedMilestones = roadmap.milestones.map((m) => ({
       ...m,
@@ -216,6 +257,57 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       nodes,
       edges,
       metrics,
+    });
+  },
+
+  loadSharedRoadmap: async (token: string): Promise<boolean> => {
+    set({ isLoading: true, error: null, shareError: null });
+
+    const fetchResult = await safeFetchJson<ApiResponse<{
+      shareInfo: {
+        label?: string;
+        ownerName: string;
+        createdAt: string;
+        expiresAt: string | null;
+      };
+      roadmap: CareerRoadmap;
+    }>>(`/api/v1/shares/${token}`);
+
+    if (!fetchResult.ok || !fetchResult.data?.success || !fetchResult.data?.data) {
+      const errorMsg =
+        fetchResult.error ||
+        fetchResult.data?.error ||
+        'This roadmap share link is invalid, expired, or was revoked.';
+      set({ isLoading: false, shareError: errorMsg, error: errorMsg });
+      return false;
+    }
+
+    const { shareInfo, roadmap: rawRoadmap } = fetchResult.data.data;
+    const { layoutDirection } = get();
+    const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
+    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+
+    set({
+      roadmap,
+      nodes,
+      edges,
+      metrics,
+      selectedMilestoneId: roadmap.milestones[0]?.id || null,
+      isReadOnly: true,
+      sharedMetadata: shareInfo,
+      isLoading: false,
+      error: null,
+      shareError: null,
+    });
+
+    return true;
+  },
+
+  exitSharedView: () => {
+    set({
+      isReadOnly: false,
+      sharedMetadata: null,
+      shareError: null,
     });
   },
 }));

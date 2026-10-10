@@ -1,6 +1,6 @@
 import dagre from 'dagre';
 import { Node, Edge, MarkerType, Position } from '@xyflow/react';
-import { CareerRoadmap, RoadmapMilestone } from '../types/roadmap';
+import { CareerRoadmap, RoadmapMilestone, RoadmapEdge } from '../types/roadmap';
 
 export interface LayoutOptions {
   direction?: 'TB' | 'LR';
@@ -55,8 +55,19 @@ export function getLayoutedRoadmap(
     });
   });
 
-  // 2. Add edges to Dagre graph (filtering out invalid or missing node references)
-  const validEdges = (roadmap.edges || []).filter(
+  // 2. Add edges to Dagre graph (derive from edges array or directly from milestone prerequisiteIds)
+  const rawEdges: RoadmapEdge[] =
+    roadmap.edges && roadmap.edges.length > 0
+      ? roadmap.edges
+      : roadmap.milestones.flatMap((m) =>
+          (m.prerequisiteIds || []).map((pId) => ({
+            id: `edge-${pId}-${m.id}`,
+            source: pId,
+            target: m.id,
+          }))
+        );
+
+  const validEdges = rawEdges.filter(
     (edge) => validMilestoneIds.has(edge.source) && validMilestoneIds.has(edge.target)
   );
 

@@ -73,7 +73,7 @@ export const RoadmapProgressHUD: React.FC = () => {
             <span className="font-mono font-bold text-slate-200 text-xs">
               {metrics.remainingHours} hrs{' '}
               <span className="text-[10px] text-slate-500 font-normal">
-                ({metrics.completedHours}h done)
+                ({metrics.completedHours}h / {metrics.totalHours}h)
               </span>
             </span>
           </div>
@@ -93,6 +93,14 @@ export const RoadmapProgressHUD: React.FC = () => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Suggested Pace Banner */}
+      <div className="px-2.5 py-1.5 rounded-lg bg-obsidian-950/40 border border-obsidian-800/60 flex items-center justify-between text-[10px] text-slate-400">
+        <span>Suggested Study Schedule:</span>
+        <span className="font-mono text-cyan-300 font-semibold">
+          ~{Math.min(roadmap.weeklyCommitmentHours, metrics.remainingHours || roadmap.weeklyCommitmentHours)}h/week
+        </span>
       </div>
 
       {/* Gap Warning Banner (when downstream nodes were completed without upstream prereqs) */}
