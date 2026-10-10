@@ -11,6 +11,7 @@ import {
 import { MilestoneNode } from './MilestoneNode';
 import { GraphToolbar } from './GraphToolbar';
 import { NodeDetailPanel } from './NodeDetailPanel';
+import { RoadmapProgressHUD } from './RoadmapProgressHUD';
 import { GraphLegend } from '../common/GraphLegend';
 import { useRoadmapStore } from '../../store/useRoadmapStore';
 import { RoadmapMilestone } from '../../types/roadmap';
@@ -111,6 +112,8 @@ const InnerCareerGraphCanvas: React.FC = () => {
             showLegend={showLegend}
             setShowLegend={setShowLegend}
           />
+
+          <RoadmapProgressHUD />
 
           {showLegend && <GraphLegend onClose={() => setShowLegend(false)} />}
         </ReactFlow>

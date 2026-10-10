@@ -1,12 +1,32 @@
 import { create } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
-import { CareerRoadmap, GenerateRoadmapRequest, RoadmapMilestone, ApiResponse } from '../types/roadmap';
+import {
+  CareerRoadmap,
+  GenerateRoadmapRequest,
+  RoadmapMilestone,
+  ApiResponse,
+  RoadmapProgressMetrics,
+} from '../types/roadmap';
 import { getLayoutedRoadmap } from '../utils/dagreLayout';
+import { recalculateRoadmapState } from '../utils/replanEngine';
+
+const DEFAULT_METRICS: RoadmapProgressMetrics = {
+  totalMilestones: 0,
+  completedCount: 0,
+  completionPercentage: 0,
+  totalHours: 0,
+  completedHours: 0,
+  remainingHours: 0,
+  totalWeeks: 0,
+  remainingWeeks: 0,
+  warningGapCount: 0,
+};
 
 interface RoadmapStoreState {
   roadmap: CareerRoadmap | null;
   nodes: Node[];
   edges: Edge[];
+  metrics: RoadmapProgressMetrics;
   selectedMilestoneId: string | null;
   layoutDirection: 'TB' | 'LR';
   isLoading: boolean;
@@ -21,25 +41,31 @@ interface RoadmapStoreState {
   clearRoadmap: () => void;
   generateRoadmap: (input: GenerateRoadmapRequest) => Promise<boolean>;
   toggleMilestoneKnown: (milestoneId: string) => void;
+  resetAllProgress: () => void;
+  markAllCompleted: () => void;
 }
 
 export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   roadmap: null,
   nodes: [],
   edges: [],
+  metrics: DEFAULT_METRICS,
   selectedMilestoneId: null,
   layoutDirection: 'TB',
   isLoading: false,
   error: null,
   activeFilter: 'all',
 
-  setRoadmap: (roadmap: CareerRoadmap) => {
+  setRoadmap: (rawRoadmap: CareerRoadmap) => {
     const { layoutDirection } = get();
+    const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+
     set({
       roadmap,
       nodes,
       edges,
+      metrics,
       selectedMilestoneId: roadmap.milestones[0]?.id || null,
       error: null,
     });
@@ -72,6 +98,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap: null,
       nodes: [],
       edges: [],
+      metrics: DEFAULT_METRICS,
       selectedMilestoneId: null,
       error: null,
     });
@@ -95,14 +122,16 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
         return false;
       }
 
-      const roadmap = result.data;
+      const rawRoadmap = result.data;
       const { layoutDirection } = get();
+      const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
       const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
       set({
         roadmap,
         nodes,
         edges,
+        metrics,
         selectedMilestoneId: roadmap.milestones[0]?.id || null,
         isLoading: false,
         error: null,
@@ -122,29 +151,71 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { roadmap, layoutDirection } = get();
     if (!roadmap) return;
 
-    const updatedMilestones: RoadmapMilestone[] = roadmap.milestones.map((m) => {
+    // 1. Invert isKnown for the target milestone
+    const intermediateMilestones: RoadmapMilestone[] = roadmap.milestones.map((m) => {
       if (m.id !== milestoneId) return m;
-
-      const nextKnown = !m.isKnown;
-      const nextStatus = nextKnown ? 'completed' : 'available';
-
       return {
         ...m,
-        isKnown: nextKnown,
-        status: nextStatus,
+        isKnown: !m.isKnown,
       };
     });
 
-    const updatedRoadmap: CareerRoadmap = {
+    const modifiedRoadmap: CareerRoadmap = {
       ...roadmap,
-      milestones: updatedMilestones,
+      milestones: intermediateMilestones,
     };
 
+    // 2. Perform topological recalculation with work preservation & gap detection
+    const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+
     set({
       roadmap: updatedRoadmap,
       nodes,
       edges,
+      metrics,
+    });
+  },
+
+  resetAllProgress: () => {
+    const { roadmap, layoutDirection } = get();
+    if (!roadmap) return;
+
+    const clearedMilestones = roadmap.milestones.map((m) => ({
+      ...m,
+      isKnown: false,
+    }));
+
+    const modifiedRoadmap = { ...roadmap, milestones: clearedMilestones };
+    const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
+    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+
+    set({
+      roadmap: updatedRoadmap,
+      nodes,
+      edges,
+      metrics,
+    });
+  },
+
+  markAllCompleted: () => {
+    const { roadmap, layoutDirection } = get();
+    if (!roadmap) return;
+
+    const completedMilestones = roadmap.milestones.map((m) => ({
+      ...m,
+      isKnown: true,
+    }));
+
+    const modifiedRoadmap = { ...roadmap, milestones: completedMilestones };
+    const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
+    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+
+    set({
+      roadmap: updatedRoadmap,
+      nodes,
+      edges,
+      metrics,
     });
   },
 }));

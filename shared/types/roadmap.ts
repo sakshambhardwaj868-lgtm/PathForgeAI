@@ -99,6 +99,18 @@ export interface GenerateRoadmapRequest {
   knownSkillIds?: string[];
 }
 
+export interface RoadmapProgressMetrics {
+  totalMilestones: number;
+  completedCount: number;
+  completionPercentage: number;
+  totalHours: number;
+  completedHours: number;
+  remainingHours: number;
+  totalWeeks: number;
+  remainingWeeks: number;
+  warningGapCount: number;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;

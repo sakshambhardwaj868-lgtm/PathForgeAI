@@ -80,7 +80,10 @@ describe('useRoadmapStore Zustand Store', () => {
     useRoadmapStore.getState().setRoadmap(sampleRoadmap);
     const state = useRoadmapStore.getState();
 
-    expect(state.roadmap).toEqual(sampleRoadmap);
+    expect(state.roadmap?.id).toBe(sampleRoadmap.id);
+    expect(state.roadmap?.milestones.length).toBe(2);
+    expect(state.metrics.totalMilestones).toBe(2);
+    expect(state.metrics.totalHours).toBe(55);
     expect(state.nodes.length).toBe(2);
     expect(state.edges.length).toBe(1);
     expect(state.selectedMilestoneId).toBe('ms-1');

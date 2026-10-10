@@ -117,9 +117,11 @@ export function getLayoutedRoadmap(
     const sourceMilestone = milestoneMap.get(edge.source);
     const targetMilestone = milestoneMap.get(edge.target);
 
+    const isWarning =
+      edge.isWarningGap ||
+      (targetMilestone?.status === 'completed_with_warning' && sourceMilestone && !sourceMilestone.isKnown);
+    const isCompleted = !isWarning && !!sourceMilestone?.isKnown && !!targetMilestone?.isKnown;
     const isTargetAvailable = targetMilestone?.status === 'available';
-    const isCompleted = sourceMilestone?.status === 'completed' && targetMilestone?.status === 'completed';
-    const isWarning = edge.isWarningGap || targetMilestone?.status === 'completed_with_warning';
 
     let strokeColor = '#334155'; // default slate-700
     let animated = false;

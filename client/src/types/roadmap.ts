@@ -16,4 +16,5 @@ export type {
   CareerRoadmap,
   GenerateRoadmapRequest,
   ApiResponse,
+  RoadmapProgressMetrics,
 } from '../../../shared/types/roadmap';

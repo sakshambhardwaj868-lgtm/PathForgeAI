@@ -165,6 +165,19 @@ export const NodeDetailPanel: React.FC = () => {
                 {milestone.isKnown ? 'Mark as Incomplete' : 'Mark as Known'}
               </button>
             </div>
+
+            {milestone.status === 'completed_with_warning' && (
+              <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/80 text-xs text-amber-200/90 flex items-start gap-2.5 leading-relaxed">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-amber-300 block">
+                    Prerequisite Dependency Gap:
+                  </span>
+                  You marked this milestone as completed, but one or more of its declared prerequisites are not yet completed.
+                  Your completed work is safely preserved! Review and acquire the open prerequisites below to close the gap.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section: Prerequisites & Dependency Tree */}
