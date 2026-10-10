@@ -1,0 +1,162 @@
+{
+  "id": "rf-ai-engineer-verified",
+  "targetRole": "Generative AI Systems Engineer",
+  "targetCompanyType": "Enterprise AI & Autonomous Agents Platform",
+  "experienceLevel": "Intermediate",
+  "weeklyCommitmentHours": 20,
+  "totalEstimatedWeeks": 18,
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Phase 1: LLM Runtimes, Structured Outputs & Schema Engineering",
+      "description": "Zero-shot JSON schemas, constrained decoding, and prompt telemetry optimization.",
+      "order": 1
+    },
+    {
+      "id": "phase-2",
+      "title": "Phase 2: RAG Retrieval, Vector Embeddings & Hybrid Search",
+      "description": "Semantic chunking, vector indexing, reranking models, and graph-augmented generation.",
+      "order": 2
+    },
+    {
+      "id": "phase-3",
+      "title": "Phase 3: Multi-Agent Orchestration & Production Evaluation",
+      "description": "Stateful agent frameworks, human-in-the-loop controls, and synthetic LLM evaluation benchmarks.",
+      "order": 3
+    }
+  ],
+  "intermediateRoles": [
+    {
+      "title": "Junior Prompt & Pipeline Engineer",
+      "estimatedTimelineMonth": 2,
+      "description": "Designing schema-enforced LLM API pipelines and structured data parsers."
+    },
+    {
+      "title": "RAG Applications Developer",
+      "estimatedTimelineMonth": 4,
+      "description": "Building semantic search gateways and vector ingestion microservices."
+    }
+  ],
+  "milestones": [
+    {
+      "id": "ms-structured-llm",
+      "title": "Constrained Decoding & Structured Schema Engineering",
+      "category": "foundation",
+      "phaseId": "phase-1",
+      "estimatedHours": 30,
+      "prerequisiteIds": [],
+      "status": "available",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Implement grammar-constrained decoding and OpenAI/Gemini responseSchema parameters.",
+          "Design runtime validators catching hallucinated fields and malformed structures."
+        ],
+        "weekendProject": {
+          "title": "Zero-Hallucination Entity Extraction Gateway",
+          "description": "Build an API proxy that ingests unstructured PDF contracts and emits 100% schema-valid JSON.",
+          "deliverables": [
+            "TypeScript API service with Zod validation",
+            "Automated test suite simulating adversarial inputs"
+          ],
+          "estimatedHours": 12
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Structured LLM Output Libraries & Benchmarks",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Allm+topic%3Astructured-outputs",
+            "description": "Open-source frameworks for enforcing JSON schemas in generative AI inference."
+          },
+          {
+            "title": "Google Gemini API Structured Outputs Guide",
+            "type": "documentation",
+            "searchQueryOrUrl": "https://ai.google.dev/gemini-api/docs/structured-output",
+            "description": "Official guide for configuring responseSchema and responseMimeType."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How does constrained decoding differ from post-hoc JSON regex repair?",
+            "idealAnswerKey": "Constrained decoding masks out invalid tokens at the logits stage during generation, making invalid outputs mathematically impossible.",
+            "difficulty": "Hard"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-hybrid-rag",
+      "title": "Hybrid Vector & BM25 Semantic Retrieval",
+      "category": "core-skill",
+      "phaseId": "phase-2",
+      "estimatedHours": 35,
+      "prerequisiteIds": ["ms-structured-llm"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Combine dense embeddings with sparse keyword search (BM25) via Reciprocal Rank Fusion (RRF).",
+          "Implement cross-encoder rerankers to improve top-3 retrieval precision."
+        ],
+        "weekendProject": {
+          "title": "Enterprise Codebase Semantic Search Engine",
+          "description": "Build an indexed search service parsing multi-language repositories with AST-aware chunking.",
+          "deliverables": ["Dockerized search API", "Precision@K benchmark evaluation report"],
+          "estimatedHours": 15
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Advanced RAG Architecture Patterns",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Arag+topic%3Avector-search",
+            "description": "Production implementations of hybrid search, rerankers, and contextual retrieval."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "Why does naive fixed-size token chunking degrade retrieval quality in source code?",
+            "idealAnswerKey": "Fixed chunks split functions and classes mid-scope, severing syntactic and semantic relationships. AST-aware chunking preserves semantic units.",
+            "difficulty": "Medium"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-agent-eval",
+      "title": "Autonomous Multi-Agent Orchestration & Evals",
+      "category": "capstone",
+      "phaseId": "phase-3",
+      "estimatedHours": 45,
+      "prerequisiteIds": ["ms-hybrid-rag"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Construct stateful multi-agent workflows with tool-calling and human checkpointing.",
+          "Build synthetic evaluation suites scoring faithfulness, answer relevancy, and cost per run."
+        ],
+        "weekendProject": {
+          "title": "Autonomous Pull Request Reviewer & Refactoring Agent",
+          "description": "Create an AI agent that analyzes GitHub PRs, runs test suites, and proposes verified diffs.",
+          "deliverables": ["Working GitHub webhook service", "Benchmarked evaluation dashboard"],
+          "estimatedHours": 18
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Multi-Agent Systems & LLM Evaluation Tools",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Aagentic-ai+topic%3Allm-evaluation",
+            "description": "Frameworks for orchestrating autonomous tool-using agents and automated evals."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How do you detect and mitigate cascading hallucinations in multi-agent tool chains?",
+            "idealAnswerKey": "Implement deterministic schema barriers between agent turns, verify tool outputs against assertions, and maintain strict token budgets.",
+            "difficulty": "Hard"
+          }
+        ]
+      }
+    }
+  ]
+}

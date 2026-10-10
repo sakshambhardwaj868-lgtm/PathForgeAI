@@ -1,0 +1,236 @@
+{
+  "id": "rf-climate-tech-verified",
+  "targetRole": "Full Stack Developer at a Climate Tech Startup",
+  "targetCompanyType": "Climate Tech & Green Energy Series-A",
+  "experienceLevel": "Beginner",
+  "weeklyCommitmentHours": 15,
+  "totalEstimatedWeeks": 22,
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Phase 1: Reactive Systems & Real-Time Runtimes",
+      "description": "Foundational TypeScript engineering, asynchronous event architectures, and streaming protocols.",
+      "order": 1
+    },
+    {
+      "id": "phase-2",
+      "title": "Phase 2: IoT Telemetry & Time-Series Pipelines",
+      "description": "Connecting distributed sensor streams to high-throughput data processing engines.",
+      "order": 2
+    },
+    {
+      "id": "phase-3",
+      "title": "Phase 3: Carbon Accounting Ledger & Production Capstone",
+      "description": "Auditable ledger architectures and production-grade Kubernetes monitoring.",
+      "order": 3
+    }
+  ],
+  "intermediateRoles": [
+    {
+      "title": "Junior Web Applications Intern",
+      "estimatedTimelineMonth": 3,
+      "description": "Building telemetry ingestion forms and internal monitoring dashboards."
+    },
+    {
+      "title": "Associate IoT Platform Engineer",
+      "estimatedTimelineMonth": 5,
+      "description": "Maintaining real-time device websockets and carbon ledger microservices."
+    }
+  ],
+  "milestones": [
+    {
+      "id": "ms-ts-core",
+      "title": "TypeScript & Asynchronous Node.js Runtimes",
+      "category": "foundation",
+      "phaseId": "phase-1",
+      "estimatedHours": 35,
+      "prerequisiteIds": [],
+      "status": "available",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Master non-blocking event loop execution under high-concurrency I/O.",
+          "Implement strict TypeScript generics and type-narrowing patterns."
+        ],
+        "weekendProject": {
+          "title": "Grid Frequency Anomaly Monitor",
+          "description": "Build an asynchronous service simulating 1,000 smart meters emitting frequency data and flagging anomalies.",
+          "deliverables": [
+            "GitHub repository with TypeScript configuration",
+            "Jest integration test suite with 80%+ coverage"
+          ],
+          "estimatedHours": 12
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Climate Tech Open Source Projects",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Aclimate-tech+language%3Atypescript",
+            "description": "Open-source software projects addressing climate data and renewable telemetry."
+          },
+          {
+            "title": "Node.js Event Loop Architecture Guide",
+            "type": "documentation",
+            "searchQueryOrUrl": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+            "description": "Official documentation covering event loop phases, timers, and microtasks."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How do you prevent event loop starvation when processing large JSON telemetry batches?",
+            "idealAnswerKey": "Offload heavy parsing to worker threads or break processing across event loop ticks using setImmediate.",
+            "difficulty": "Medium"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-ws-streaming",
+      "title": "Real-Time Telemetry Streaming via WebSockets",
+      "category": "core-skill",
+      "phaseId": "phase-1",
+      "estimatedHours": 30,
+      "prerequisiteIds": ["ms-ts-core"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Manage duplex WebSocket client connections with heartbeat ping/pong mechanisms.",
+          "Buffer and batch streaming metrics during client network interruptions."
+        ],
+        "weekendProject": {
+          "title": "Live Solar Array Output Dashboard",
+          "description": "Create a React dashboard rendering kilowatt generation curves over WebSockets in real time.",
+          "deliverables": ["Interactive canvas line chart", "Auto-reconnecting client hook"],
+          "estimatedHours": 10
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Renewable Energy & Smart Grid Repositories",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Asmart-grid+topic%3Aiot",
+            "description": "Curated repositories focusing on smart meter protocols and IoT data streaming."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How do you handle client backpressure when streaming high-frequency sensor updates?",
+            "idealAnswerKey": "Throttle updates on the server or drop non-critical intermediary frames, preserving only the latest state.",
+            "difficulty": "Hard"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-timescale-db",
+      "title": "Time-Series Data Modeling with PostgreSQL & TimescaleDB",
+      "category": "tooling",
+      "phaseId": "phase-2",
+      "estimatedHours": 35,
+      "prerequisiteIds": ["ms-ts-core"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Design hypertable partitioning strategies for millions of sensory rows per day.",
+          "Write rolling aggregate queries calculating hourly kilowatt-hour averages."
+        ],
+        "weekendProject": {
+          "title": "Solar Yield Historical Analytics Engine",
+          "description": "Design a relational schema indexing millions of solar irradiance points with continuous compression.",
+          "deliverables": ["SQL migration script", "Benchmarked aggregation query suite"],
+          "estimatedHours": 14
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: TimescaleDB Examples & IoT Benchmarks",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Atimescaledb+topic%3Aiot",
+            "description": "Community patterns for high-throughput time-series storage and continuous aggregation."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "Why are standard relational B-Tree indexes suboptimal for high-volume time-series inserts?",
+            "idealAnswerKey": "B-Tree indexes cause frequent page splits and cache invalidations as data grows. Partitioning by time chunk keeps active working sets in RAM.",
+            "difficulty": "Medium"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-capstone-carbon",
+      "title": "Production Carbon Ledger Microservice",
+      "category": "capstone",
+      "phaseId": "phase-3",
+      "estimatedHours": 45,
+      "prerequisiteIds": ["ms-ws-streaming", "ms-timescale-db"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Design auditable double-entry transaction ledgers for carbon offset tracking.",
+          "Implement Dockerized multi-stage container pipelines with automated health checks."
+        ],
+        "weekendProject": {
+          "title": "Verifiable Carbon Offset Exchange Service",
+          "description": "Implement a full-stack REST and WebSocket service tracking renewable credits with cryptographic audit trails.",
+          "deliverables": ["Docker Compose setup", "Live deployed demo URL"],
+          "estimatedHours": 18
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Carbon Accounting & ESG Software",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Acarbon-accounting+topic%3Agreen-software",
+            "description": "Open-source specifications and calculators for greenhouse gas protocols."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How do you guarantee ledger idempotency during network retries?",
+            "idealAnswerKey": "Require unique client-generated idempotency keys checked against an in-memory cache before processing transactions.",
+            "difficulty": "Medium"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-cloud-deploy",
+      "title": "Cloud Infrastructure, Docker & Observability",
+      "category": "career-prep",
+      "phaseId": "phase-3",
+      "estimatedHours": 25,
+      "prerequisiteIds": ["ms-capstone-carbon"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Deploy containerized microservices to cloud platforms with CI/CD automation.",
+          "Configure Prometheus metrics and Grafana dashboards for cluster observability."
+        ],
+        "weekendProject": {
+          "title": "Zero-Downtime Deployment & Health Monitor",
+          "description": "Set up a complete GitHub Actions CI/CD pipeline deploying the carbon ledger to Render with health checks.",
+          "deliverables": ["GitHub Actions YAML workflow", "Grafana telemetry dashboard"],
+          "estimatedHours": 10
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: CI/CD & Cloud Infrastructure Templates",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Adevops+topic%3Adocker-compose",
+            "description": "Production configurations for automated testing and cloud container hosting."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "What is the difference between a Liveness Probe and a Readiness Probe in container orchestrators?",
+            "idealAnswerKey": "Liveness determines if the container needs a restart; Readiness determines if the container can currently accept incoming traffic.",
+            "difficulty": "Easy"
+          }
+        ]
+      }
+    }
+  ]
+}

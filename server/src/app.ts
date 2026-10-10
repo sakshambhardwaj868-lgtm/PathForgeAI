@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
 import { healthRouter } from './routes/healthRoutes';
+import { roadmapRouter } from './routes/roadmapRoutes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -22,6 +23,7 @@ export const createApp = (): Express => {
 
   // Route Mounting
   app.use('/api/v1', healthRouter);
+  app.use('/api/v1/roadmap', roadmapRouter);
 
   // 404 Handler
   app.use((_req: Request, res: Response) => {

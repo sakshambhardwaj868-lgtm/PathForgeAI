@@ -1,0 +1,162 @@
+{
+  "id": "rf-fintech-ux-verified",
+  "targetRole": "UI/UX Designer for Fintech Apps",
+  "targetCompanyType": "Fintech & Digital Banking Startup",
+  "experienceLevel": "Beginner",
+  "weeklyCommitmentHours": 15,
+  "totalEstimatedWeeks": 20,
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Phase 1: Financial Usability, Design Systems & Information Architecture",
+      "description": "Mastering high-trust interaction design, WCAG financial accessibility, and micro-interactions.",
+      "order": 1
+    },
+    {
+      "id": "phase-2",
+      "title": "Phase 2: Complex Financial Workflows & Regulatory UX",
+      "description": "Designing high-friction security verification, KYC identity onboarding, and ledger data tables.",
+      "order": 2
+    },
+    {
+      "id": "phase-3",
+      "title": "Phase 3: Portfolio Case Studies & Interactive Prototyping",
+      "description": "End-to-end Figma interactive component libraries and real-user usability test reports.",
+      "order": 3
+    }
+  ],
+  "intermediateRoles": [
+    {
+      "title": "Associate Product Design Intern",
+      "estimatedTimelineMonth": 3,
+      "description": "Creating payment status screens and reusable design token libraries."
+    },
+    {
+      "title": "Junior Fintech UX Specialist",
+      "estimatedTimelineMonth": 5,
+      "description": "Designing multi-currency transfer flows and fraud confirmation dialogues."
+    }
+  ],
+  "milestones": [
+    {
+      "id": "ms-figma-tokens",
+      "title": "Design Systems, Tokens & Component Architecture",
+      "category": "foundation",
+      "phaseId": "phase-1",
+      "estimatedHours": 30,
+      "prerequisiteIds": [],
+      "status": "available",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Construct semantic design token variables (spacing, elevation, typography).",
+          "Build scalable auto-layout components with state variants (default, focused, error, disabled)."
+        ],
+        "weekendProject": {
+          "title": "High-Trust Financial Component Kit",
+          "description": "Design an atomic design system with 25+ accessible components specifically for financial transaction UIs.",
+          "deliverables": [
+            "Figma community file with auto-layout variants",
+            "Token documentation export"
+          ],
+          "estimatedHours": 12
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Open Source Design Systems & Token Spec",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Adesign-tokens+topic%3Afigma",
+            "description": "Design token specifications and automated pipeline generators."
+          },
+          {
+            "title": "W3C Design Tokens Community Group Specification",
+            "type": "documentation",
+            "searchQueryOrUrl": "https://design-tokens.github.io/community-group/format/",
+            "description": "Official standard format for exchanging design tokens across tools."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How do you design high-contrast error states for colorblind users on a financial transfer screen?",
+            "idealAnswerKey": "Pair color signals with distinct iconography, bold typography, and explicit inline error messaging rather than color alone.",
+            "difficulty": "Easy"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-kyc-flow",
+      "title": "KYC Onboarding & High-Friction Security UX",
+      "category": "core-skill",
+      "phaseId": "phase-2",
+      "estimatedHours": 35,
+      "prerequisiteIds": ["ms-figma-tokens"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Balance regulatory security requirements with friction reduction during passport/identity upload.",
+          "Design progressive disclosure patterns preventing user abandonment during verification."
+        ],
+        "weekendProject": {
+          "title": "Zero-Dropoff Identity Verification Flow",
+          "description": "Prototype a 5-step biometric and document upload mobile onboarding sequence with graceful fallback states.",
+          "deliverables": ["Interactive prototype video walkthrough", "Usability test heuristic evaluation"],
+          "estimatedHours": 14
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Fintech UI Inspiration & Mobile Patterns",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Afintech+topic%3Aui-ux",
+            "description": "Curated interface patterns for digital banking and wallet applications."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "When is introducing intentional friction beneficial in a financial user experience?",
+            "idealAnswerKey": "When confirming irreversible actions like large wire transfers or account deletion, friction forces cognitive pause and prevents costly errors.",
+            "difficulty": "Medium"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ms-portfolio-case",
+      "title": "Comprehensive Fintech Capstone Case Study",
+      "category": "capstone",
+      "phaseId": "phase-3",
+      "estimatedHours": 40,
+      "prerequisiteIds": ["ms-kyc-flow"],
+      "status": "locked",
+      "isKnown": false,
+      "actionableData": {
+        "learningObjectives": [
+          "Document problem framing, user research metrics, wireframes, iterations, and final outcomes.",
+          "Conduct unmoderated usability tests with 5 users and synthesize measurable improvements."
+        ],
+        "weekendProject": {
+          "title": "Cross-Border Remittance Web Application",
+          "description": "Complete a full case study redesigning currency conversion transparency and transfer tracking.",
+          "deliverables": ["Interactive clickable Figma prototype", "Published Notion/Medium case study"],
+          "estimatedHours": 18
+        },
+        "curatedResources": [
+          {
+            "title": "GitHub: Product Design Portfolios & Case Study Blueprints",
+            "type": "github_search",
+            "searchQueryOrUrl": "https://github.com/search?q=topic%3Adesign-portfolio+topic%3Acase-study",
+            "description": "Open portfolio blueprints and case study frameworks for product designers."
+          }
+        ],
+        "interviewChallenges": [
+          {
+            "question": "How do you defend design decisions to engineering and risk compliance stakeholders?",
+            "idealAnswerKey": "Anchor decisions in user research data, conversion metrics, and accessibility standards rather than aesthetic preference.",
+            "difficulty": "Hard"
+          }
+        ]
+      }
+    }
+  ]
+}
