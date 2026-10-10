@@ -1,86 +1,193 @@
-# PathForge AI — Reverse-Engineered Career Roadmapper
-**Hackathon Track:** Problem Statement 1 (Reverse-Engineered Career Roadmapper)
+# PathForge AI 🚀
+### Reverse-Engineered Career Roadmapper
 
----
+**Problem Statement #1 — Hackathon**
 
-## 1. What It Does
-PathForge AI is an interactive, visual career roadmap platform that reverse-engineers hyper-specific dream engineering jobs (such as *"Full Stack Developer at a Climate Tech Startup"* or *"Infrastructure Engineer in Quantitative Finance"*) into living, interactive skill trees. Built around a directed acyclic graph (DAG) canvas powered by structured Generative AI, it provides concrete weekend portfolio project specifications, curated GitHub search topics, domain-specific interview challenges, and a deterministic re-routing engine that dynamically recalculates preparation timelines when milestones are marked as known.
+PathForge AI transforms a student's specific career goal into an interactive, personalized roadmap with connected skill milestones, actionable projects, learning resources, and interview preparation. Students can track progress, mark skills as already known, and adapt their learning plan to their available study time.
 
----
+## 🎯 The Problem
 
-## 2. Done / Left / Plan
-- **Done (Phase 1):**
-  - Clean project scaffolding in dedicated repository (`client/`, `server/`, `shared/`).
-  - Full TypeScript data contracts with decoupled non-destructive node states (`'locked' | 'available' | 'completed' | 'completed_with_warning'`).
-  - Node.js + Express API setup with Zod environment validation and security middleware.
-  - Verified `GET /api/v1/health` endpoint and clean production builds for frontend and backend.
-- **Left:**
-  - Phase 2: Generative AI orchestration with Gemini 2.5 Flash and strict DAG validation (cycle detection, dependency checking).
-  - Phase 3: Interactive React Flow DAG canvas with Dagre auto-layout.
-  - Phase 4: Actionable milestone drawer with project specs, repos, and interview challenges.
-  - Phase 5: Deterministic client-side re-planning engine with non-destructive progress preservation.
-  - Phase 6: Input command center, live vs cached indicator badge, and HUD metrics.
-  - Phase 7: Mobile touch optimization, security audit, and deployment.
-- **Plan:** Execute remaining phases sequentially with acceptance criteria and testing checkpoints.
+Most career advice is generic. Students often don't know which skills to learn first, which projects to build, or how to prepare for a particular role at a particular type of company.
 
----
+## 💡 Our Solution
 
-## 3. Architecture and Why
-- **Frontend (Client):** React 18 with Vite and TypeScript for rapid development and fast HMR; Tailwind CSS for modern dark-mode styling; `@xyflow/react` (React Flow v12) for rendering directed graph canvases with zoom, pan, and minimap; Dagre for collision-free hierarchical layout.
-- **Backend (Server):** Node.js and Express in TypeScript for shared data contracts; Zod for strict runtime schema validation; Helmet and CORS for security; server-side API key isolation.
-- **Generative AI:** Google Gemini 2.5 Flash utilizing native structured JSON schema mode (`responseSchema`) with low temperature (0.2) and resilient offline fallback datasets.
-- **Persistence:** Local-first architecture (`localStorage`) ensuring instant evaluation without database friction or authentication barriers.
+PathForge AI helps students work backward from their dream job to a structured learning path.
 
----
+### Key Features
 
-## 4. What We Added
-- **Decoupled Non-Destructive Re-Planning:** Marking a skill as known preserves completion status even if an upstream prerequisite is unchecked, displaying clear dependency warning indicators without erasing user work.
-- **Actionable Weekend Project Specifications:** Every milestone generates a practical weekend project challenge with concrete deliverables to prove competence.
-- **Safe Search-Anchored Resources:** Instead of hallucinated repository URLs, links resolve to verified, parameterized GitHub search topics and official documentation.
-- **Transparent Source Indicator:** Clearly tags whether the loaded roadmap originates from live AI synthesis or verified offline cached datasets.
+- **AI-powered roadmaps:** Generate career paths from a user's specific career objective.
+- **Interactive skill graph:** Explore milestones through a visual graph with zoom, pan, and clickable nodes.
+- **Actionable milestones:** View learning objectives, weekend projects, deliverables, learning resources, and interview questions.
+- **Dynamic replanning:** Mark skills as known or completed and update the remaining learning plan.
+- **Progress tracking:** Track completed skills, remaining effort, and estimated study timeline.
+- **User accounts and cloud storage:** Register, sign in, and save roadmaps using MongoDB Atlas.
+- **Roadmap sharing:** Create shareable, read-only roadmap links.
+- **Offline fallback:** Open a verified sample roadmap when live generation or network connectivity is unavailable.
 
----
+## 🛠️ Technology Stack
 
-## 5. How to Run It
+| Layer | Technologies |
+|---|---|
+| Frontend | React, Vite, TypeScript, Tailwind CSS |
+| Interactive graph | React Flow (`@xyflow/react`), Dagre |
+| State management | Zustand |
+| Backend | Node.js, Express, TypeScript |
+| AI | Google Gemini API |
+| Validation | Zod |
+| Database | MongoDB Atlas |
+| Authentication | Password hashing, JWT-based authentication |
+| Testing | Vitest and backend automated tests |
+
+## 🏗️ Architecture and Why
+
+1. **React + Vite:** Provides a responsive frontend and a fast development environment.
+2. **React Flow + Dagre:** Displays career milestones as a connected graph and automatically arranges the nodes.
+3. **Node.js + Express:** Handles API requests, roadmap generation, authentication, saving, and sharing.
+4. **Gemini API:** Generates roadmap content based on the user's career goal and preferences.
+5. **Zod:** Validates request and roadmap data to reduce malformed-input and invalid-data issues.
+6. **MongoDB Atlas:** Stores user accounts and saved roadmaps in the cloud.
+7. **Zustand:** Manages roadmap and progress state in the frontend.
+
+The browser communicates with the backend, which handles AI requests and database operations. The Gemini API key and database credentials must remain on the server, never in frontend code.
+
+## ✅ Done / Left / Plan
+
+### Done
+
+- Interactive career roadmap canvas and milestone detail panel.
+- Roadmap progress tracking and dynamic replanning.
+- Learning objectives, project deliverables, resources, and interview preparation.
+- Backend roadmap-generation and validation flow.
+- Offline fallback datasets and improved error handling.
+- Authentication, roadmap persistence, and sharing features implemented in the codebase.
+- Automated tests and production builds reported as passing during development.
+
+### Left
+
+- Complete end-to-end testing of the full user journey.
+- Verify live AI generation, authentication, cloud saving, and shared links in the browser.
+- Test mobile responsiveness, error handling, and deployment configuration.
+- Deploy the frontend and backend publicly and verify the production environment.
+
+### Plan
+
+1. Test the complete application locally.
+2. Resolve any remaining functional or UI issues.
+3. Deploy the frontend and backend.
+4. Verify environment variables, database access, and API connectivity.
+5. Update this README with the verified live URL and final test results.
+
+## 🚀 How to Run Locally
+
 ### Prerequisites
-- Node.js v20+ and npm 10+
 
-### Setup Steps
-1. Clone repository and install dependencies:
-   ```bash
-   # Install server dependencies
-   cd server && npm install
+- Node.js and npm
+- A MongoDB Atlas database
+- A Google Gemini API key for live AI generation
 
-   # Install client dependencies
-   cd ../client && npm install
-   ```
+### 1. Clone the repository
 
-2. Configure environment:
-   ```bash
-   cp server/.env.example server/.env
-   # Add your GEMINI_API_KEY in server/.env (optional for offline testing)
-   ```
+```bash
+git clone https://github.com/sakshambhardwaj868-lgtm/PathForgeAI.git
+cd PathForgeAI
+```
 
-3. Run development servers:
-   ```bash
-   # From root directory:
-   npm run dev:server  # Runs API on http://localhost:5000
-   npm run dev:client  # Runs UI on http://localhost:5173
-   ```
+### 2. Install dependencies
 
-4. Verify health:
-   ```bash
-   curl http://localhost:5000/api/v1/health
-   ```
+Open a terminal in the project root and install dependencies in the relevant folders:
+
+```bash
+cd server
+npm install
+```
+
+Open a **second terminal** in the project root:
+
+```bash
+cd client
+npm install
+```
+
+### 3. Configure environment variables
+
+Create `server/.env` using `server/.env.example` as a reference. Add the variables required by the server, including your Gemini API key, MongoDB connection string, and authentication secret.
+
+Example format:
+
+```env
+MONGODB_URI=your_mongodb_connection_string
+GEMINI_API_KEY=your_gemini_api_key
+JWT_SECRET=your_long_random_secret
+```
+
+Use the exact variable names expected by the project configuration. Never commit real credentials or `.env` files.
+
+### 4. Start the backend
+
+In the server terminal:
+
+```bash
+npm run dev
+```
+
+Confirm that the server starts and connects to MongoDB successfully.
+
+### 5. Start the frontend
+
+In the client terminal:
+
+```bash
+npm run dev
+```
+
+Open the local URL printed by Vite, currently expected to be:
+
+`http://localhost:5173`
+
+### 6. Try the main workflow
+
+1. Enter a specific career objective.
+2. Choose your current skill level and weekly study hours.
+3. Click **Synthesize Roadmap**.
+4. Explore the graph and select a milestone.
+5. Review the objectives, project deliverables, resources, and interview questions.
+6. Mark skills as known or completed and inspect the updated progress.
+7. Sign in to test cloud saving and create a shared roadmap link.
+
+*Note: Confirm the environment-variable names, setup commands, and each workflow against the final code before submitting.*
+
+## 🤖 Tools and AI Used
+
+- **Google Gemini API:** Generates personalized career-roadmap content.
+- **Antigravity IDE:** AI-assisted development and debugging.
+- **React Flow and Dagre:** Interactive graph visualization and layout.
+- **MongoDB Atlas:** Cloud database.
+- **Git and GitHub:** Version control and source-code hosting.
+
+AI-generated content is provided as career guidance and should be checked against official documentation and current job requirements. The interface should clearly identify AI-generated recommendations.
+
+## 👥 Who Is It For?
+
+- College students preparing for internships and placements.
+- Beginners who need a structured path into software development or another technical career.
+- Students preparing for specialized roles in fintech, AI, design, and full-stack development.
+- Learners who need to organize study time, projects, and interview preparation.
+
+PathForge AI aims to make career preparation more specific, actionable, and trackable than a generic list of courses.
+
+## 👨‍💻 Team
+
+**Team:** Nexora
+
+- **Team Leader:** Saksham Bhardwaj
+- **Team Member:** pankaj singh
+
+## 🔗 Repository
+
+[View PathForge AI on GitHub](https://github.com/sakshambhardwaj868-lgtm/PathForgeAI)
+
+**Live Demo:** Add the verified public deployment URL after deployment.
 
 ---
 
-## 6. Tools and AI Used
-- **Libraries & Frameworks:** React 18, Vite, TypeScript, Tailwind CSS, `@xyflow/react` (React Flow v12), `@dagrejs/dagre`, Zustand, Express, Zod, Helmet, Cors, Lucide React.
-- **AI Models:** Google Gemini 2.5 Flash (`gemini-2.5-flash`).
-- **AI Disclosure:** All career roadmaps, milestone breakdowns, weekend projects, and interview questions are synthesized by Generative AI and validated via server-side schemas. Transparent badges indicate when live AI vs cached data is rendered.
-
----
-
-## 7. Who It Is For
-PathForge AI is designed for college students, placement candidates, and career switchers who need a clear, non-generic, actionable roadmap to land hyper-specific dream roles in competitive tech sectors. Users return to track their progress, build concrete portfolio projects, and adapt their preparation timelines as they master new skills.
+*Built for the hackathon — Problem Statement #1: Reverse-Engineered Career Roadmapper.*
