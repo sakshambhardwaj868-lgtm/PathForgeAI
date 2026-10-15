@@ -11,12 +11,46 @@ export interface SafeFetchResult<T> {
   error: string | null;
 }
 
+export function getApiBaseUrl(): string {
+  const env = (import.meta as any)?.env;
+  if (env && env.VITE_API_URL) {
+    return String(env.VITE_API_URL).replace(/\/+$/, '');
+  }
+  // When deployed in production (e.g. on Vercel) and VITE_API_URL is unset,
+  // automatically target the live verified Render backend API
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    return 'https://pathforgeai-fgjf.onrender.com';
+  }
+  return '';
+}
+
+export function resolveApiUrl(input: RequestInfo | URL): RequestInfo | URL {
+  if (typeof input === 'string') {
+    const baseUrl = getApiBaseUrl();
+    if (baseUrl && input.startsWith('/api')) {
+      return `${baseUrl}${input}`;
+    }
+  } else if (typeof URL !== 'undefined' && input instanceof URL) {
+    const baseUrl = getApiBaseUrl();
+    if (baseUrl && input.pathname.startsWith('/api')) {
+      return new URL(`${baseUrl}${input.pathname}${input.search}`);
+    }
+  }
+  return input;
+}
+
 export async function safeFetchJson<T = any>(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<SafeFetchResult<T>> {
   try {
-    const response = await fetch(input, init);
+    const targetUrl = resolveApiUrl(input);
+    const response = await fetch(targetUrl, init);
     const contentType = response.headers.get('content-type') || '';
     const rawText = await response.text();
 

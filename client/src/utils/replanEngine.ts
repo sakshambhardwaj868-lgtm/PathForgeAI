@@ -56,7 +56,11 @@ export function recalculateRoadmapState(
   // 2. Determine node status for each milestone
   const updatedMilestones: RoadmapMilestone[] = roadmap.milestones.map((m) => {
     const isKnown = !!m.isKnown;
-    const prereqIds = Array.isArray(m.prerequisiteIds) ? m.prerequisiteIds : [];
+    const prereqIds = Array.isArray(m.prerequisiteIds)
+      ? m.prerequisiteIds
+      : Array.isArray((m as any).prerequisites)
+      ? (m as any).prerequisites
+      : [];
 
     // Check if all prerequisites are fulfilled
     let allPrereqsSatisfied = true;

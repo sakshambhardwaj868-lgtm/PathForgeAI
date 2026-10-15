@@ -179,22 +179,20 @@ describe('useAuthStore Zustand Store', () => {
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url.includes('/api/v1/roadmaps/save')) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
+        return Promise.resolve(
+          mockFetchResponse({
             success: true,
             message: 'Roadmap saved to cloud storage.',
-          }),
-        });
+          })
+        );
       }
       if (url.includes('/api/v1/roadmaps/my')) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
+        return Promise.resolve(
+          mockFetchResponse({
             success: true,
             data: [],
-          }),
-        });
+          })
+        );
       }
       return Promise.reject(new Error('Unknown URL'));
     });

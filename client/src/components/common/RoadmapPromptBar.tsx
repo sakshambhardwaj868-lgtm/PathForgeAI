@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Compass,
@@ -56,12 +56,21 @@ export const RoadmapPromptBar: React.FC = () => {
   const saveRoadmapToCloud = useAuthStore((s) => s.saveRoadmapToCloud);
   const fetchRoadmapById = useAuthStore((s) => s.fetchRoadmapById);
 
+  const isReadOnly = useRoadmapStore((s) => s.isReadOnly);
+  const setWeeklyCommitmentHours = useRoadmapStore((s) => s.setWeeklyCommitmentHours);
+
   const [role, setRole] = useState<string>('Full Stack Developer at a Climate Tech Startup');
   const [company, setCompany] = useState<string>('Clean Energy Series-A');
   const [level, setLevel] = useState<SkillLevel>('Beginner');
   const [hours, setHours] = useState<number>(15);
   const [showSavedDropdown, setShowSavedDropdown] = useState<boolean>(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (roadmap?.weeklyCommitmentHours && roadmap.weeklyCommitmentHours !== hours) {
+      setHours(roadmap.weeklyCommitmentHours);
+    }
+  }, [roadmap?.weeklyCommitmentHours]);
 
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -300,7 +309,13 @@ export const RoadmapPromptBar: React.FC = () => {
         {/* Hours selector */}
         <select
           value={hours}
-          onChange={(e) => setHours(Number(e.target.value))}
+          onChange={(e) => {
+            const newHours = Number(e.target.value);
+            setHours(newHours);
+            if (roadmap && !isReadOnly) {
+              setWeeklyCommitmentHours(newHours);
+            }
+          }}
           className="px-2.5 py-1.5 rounded-lg bg-obsidian-950 border border-obsidian-800 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
         >
           <option value={10}>10 hrs/wk</option>

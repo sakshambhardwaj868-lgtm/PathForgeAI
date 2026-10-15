@@ -11,6 +11,7 @@ import { getLayoutedRoadmap } from '../utils/dagreLayout';
 import { recalculateRoadmapState } from '../utils/replanEngine';
 import { safeFetchJson } from '../services/apiClient';
 import { getClientOfflineFallback } from '../data/fallbackService';
+import { useAuthStore } from './useAuthStore';
 
 const DEFAULT_METRICS: RoadmapProgressMetrics = {
   totalMilestones: 0,
@@ -23,6 +24,37 @@ const DEFAULT_METRICS: RoadmapProgressMetrics = {
   remainingWeeks: 0,
   warningGapCount: 0,
 };
+
+const ACTIVE_ROADMAP_STORAGE_KEY = 'pathforge_active_roadmap';
+
+function saveRoadmapToLocalStorage(roadmap: CareerRoadmap | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (roadmap) {
+      localStorage.setItem(ACTIVE_ROADMAP_STORAGE_KEY, JSON.stringify(roadmap));
+    } else {
+      localStorage.removeItem(ACTIVE_ROADMAP_STORAGE_KEY);
+    }
+  } catch (err) {
+    console.warn('Failed to cache active roadmap in localStorage:', err);
+  }
+}
+
+function loadInitialRoadmap(): CareerRoadmap | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ACTIVE_ROADMAP_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.milestones) && parsed.milestones.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to parse cached roadmap from localStorage:', err);
+  }
+  return null;
+}
 
 interface RoadmapStoreState {
   roadmap: CareerRoadmap | null;
@@ -52,18 +84,25 @@ interface RoadmapStoreState {
   generateRoadmap: (input: GenerateRoadmapRequest) => Promise<boolean>;
   loadOfflineFallback: (targetRole?: string) => void;
   toggleMilestoneKnown: (milestoneId: string) => void;
+  setWeeklyCommitmentHours: (hours: number) => void;
   resetAllProgress: () => void;
   markAllCompleted: () => void;
   loadSharedRoadmap: (token: string) => Promise<boolean>;
   exitSharedView: () => void;
 }
 
+const initialRoadmap = loadInitialRoadmap();
+const initialRecalc = initialRoadmap ? recalculateRoadmapState(initialRoadmap) : null;
+const initialGraph = initialRecalc
+  ? getLayoutedRoadmap(initialRecalc.roadmap, { direction: 'TB' })
+  : { nodes: [], edges: [] };
+
 export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
-  roadmap: null,
-  nodes: [],
-  edges: [],
-  metrics: DEFAULT_METRICS,
-  selectedMilestoneId: null,
+  roadmap: initialRecalc ? initialRecalc.roadmap : null,
+  nodes: initialGraph.nodes,
+  edges: initialGraph.edges,
+  metrics: initialRecalc ? initialRecalc.metrics : DEFAULT_METRICS,
+  selectedMilestoneId: initialRecalc?.roadmap.milestones[0]?.id || null,
   layoutDirection: 'TB',
   isLoading: false,
   error: null,
@@ -76,6 +115,8 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { layoutDirection } = get();
     const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+
+    saveRoadmapToLocalStorage(roadmap);
 
     set({
       roadmap,
@@ -113,6 +154,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   },
 
   clearRoadmap: () => {
+    saveRoadmapToLocalStorage(null);
     set({
       roadmap: null,
       nodes: [],
@@ -149,6 +191,8 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
+    saveRoadmapToLocalStorage(roadmap);
+
     set({
       roadmap,
       nodes,
@@ -176,6 +220,8 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
 
     const { roadmap, metrics } = recalculateRoadmapState(rawFallback);
     const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+
+    saveRoadmapToLocalStorage(roadmap);
 
     set({
       roadmap,
@@ -210,12 +256,55 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
+    saveRoadmapToLocalStorage(updatedRoadmap);
+
     set({
       roadmap: updatedRoadmap,
       nodes,
       edges,
       metrics,
     });
+
+    // Background cloud sync if user is authenticated
+    try {
+      const authState = useAuthStore.getState();
+      if (authState.isAuthenticated && authState.token) {
+        authState.saveRoadmapToCloud(updatedRoadmap).catch(() => {});
+      }
+    } catch {
+      // Non-blocking
+    }
+  },
+
+  setWeeklyCommitmentHours: (hours: number) => {
+    const { roadmap, layoutDirection, isReadOnly } = get();
+    if (!roadmap || isReadOnly || hours <= 0) return;
+
+    const modifiedRoadmap: CareerRoadmap = {
+      ...roadmap,
+      weeklyCommitmentHours: hours,
+    };
+
+    const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
+    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+
+    saveRoadmapToLocalStorage(updatedRoadmap);
+
+    set({
+      roadmap: updatedRoadmap,
+      nodes,
+      edges,
+      metrics,
+    });
+
+    try {
+      const authState = useAuthStore.getState();
+      if (authState.isAuthenticated && authState.token) {
+        authState.saveRoadmapToCloud(updatedRoadmap).catch(() => {});
+      }
+    } catch {
+      // Non-blocking
+    }
   },
 
   resetAllProgress: () => {
@@ -231,12 +320,23 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
+    saveRoadmapToLocalStorage(updatedRoadmap);
+
     set({
       roadmap: updatedRoadmap,
       nodes,
       edges,
       metrics,
     });
+
+    try {
+      const authState = useAuthStore.getState();
+      if (authState.isAuthenticated && authState.token) {
+        authState.saveRoadmapToCloud(updatedRoadmap).catch(() => {});
+      }
+    } catch {
+      // Non-blocking
+    }
   },
 
   markAllCompleted: () => {
@@ -252,12 +352,23 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
     const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
+    saveRoadmapToLocalStorage(updatedRoadmap);
+
     set({
       roadmap: updatedRoadmap,
       nodes,
       edges,
       metrics,
     });
+
+    try {
+      const authState = useAuthStore.getState();
+      if (authState.isAuthenticated && authState.token) {
+        authState.saveRoadmapToCloud(updatedRoadmap).catch(() => {});
+      }
+    } catch {
+      // Non-blocking
+    }
   },
 
   loadSharedRoadmap: async (token: string): Promise<boolean> => {

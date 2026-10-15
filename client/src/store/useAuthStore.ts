@@ -153,32 +153,26 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     }
 
     try {
-      const response = await fetch('/api/v1/auth/me', {
+      const result = await safeFetchJson<any>('/api/v1/auth/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!response.ok) {
+      if (!result.ok || !result.data?.success || !result.data?.user) {
         localStorage.removeItem(TOKEN_KEY);
         set({ user: null, token: null, isAuthenticated: false });
         return;
       }
 
-      const data = await response.json();
-      if (data.success && data.user) {
-        set({
-          user: data.user,
-          token,
-          isAuthenticated: true,
-        });
-        get().fetchSavedRoadmaps();
-      } else {
-        localStorage.removeItem(TOKEN_KEY);
-        set({ user: null, token: null, isAuthenticated: false });
-      }
+      set({
+        user: result.data.user,
+        token,
+        isAuthenticated: true,
+      });
+      get().fetchSavedRoadmaps();
     } catch {
-      // In offline mode or network drop, keep existing session or reset gracefully
+      // In offline mode or network drop, reset gracefully
       set({ user: null, token: null, isAuthenticated: false });
     }
   },
@@ -193,7 +187,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
 
     set({ isSavingToCloud: true });
     try {
-      const response = await fetch('/api/v1/roadmaps/save', {
+      const result = await safeFetchJson<any>('/api/v1/roadmaps/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,12 +196,10 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
         body: JSON.stringify(roadmap),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!result.ok || !result.data?.success) {
         set({
           isSavingToCloud: false,
-          error: data.error || 'Failed to save roadmap to cloud.',
+          error: result.error || result.data?.error || 'Failed to save roadmap to cloud.',
         });
         return false;
       }
@@ -234,17 +226,14 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     if (!isAuthenticated || !token) return;
 
     try {
-      const response = await fetch('/api/v1/roadmaps/my', {
+      const result = await safeFetchJson<any>('/api/v1/roadmaps/my', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!response.ok) return;
-
-      const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
-        const summaries: SavedRoadmapSummary[] = data.data.map((item: any) => ({
+      if (result.ok && result.data?.success && Array.isArray(result.data.data)) {
+        const summaries: SavedRoadmapSummary[] = result.data.data.map((item: any) => ({
           _id: item._id,
           roadmapId: item.roadmapId,
           targetRole: item.targetRole,
@@ -264,17 +253,14 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     if (!isAuthenticated || !token) return null;
 
     try {
-      const response = await fetch(`/api/v1/roadmaps/${id}`, {
+      const result = await safeFetchJson<any>(`/api/v1/roadmaps/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!response.ok) return null;
-
-      const data = await response.json();
-      if (data.success && data.data) {
-        return data.data as CareerRoadmap;
+      if (result.ok && result.data?.success && result.data.data) {
+        return result.data.data as CareerRoadmap;
       }
       return null;
     } catch {
@@ -287,15 +273,14 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     if (!isAuthenticated || !token) return false;
 
     try {
-      const response = await fetch(`/api/v1/roadmaps/${id}`, {
+      const result = await safeFetchJson<any>(`/api/v1/roadmaps/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await response.json();
-      if (response.ok && data.success) {
+      if (result.ok && result.data?.success) {
         get().fetchSavedRoadmaps();
         return true;
       }
