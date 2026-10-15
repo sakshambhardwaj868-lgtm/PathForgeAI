@@ -34,6 +34,9 @@ export class RoadmapController {
 
       res.setHeader('X-Response-Time-Ms', durationMs.toString());
       res.setHeader('X-Roadmap-Source', roadmap.source);
+      if (roadmap.modelUsed) {
+        res.setHeader('X-Roadmap-Model', roadmap.modelUsed);
+      }
 
       res.status(200).json({
         success: true,

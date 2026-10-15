@@ -8,23 +8,46 @@ export interface LayoutOptions {
   nodeHeight?: number;
 }
 
+export interface StageGroupInfo {
+  phaseId: string;
+  title: string;
+  description?: string;
+  order: number;
+  milestoneIds: string[];
+  totalHours: number;
+  completedCount: number;
+  totalCount: number;
+  isCompleted: boolean;
+  isActive: boolean;
+  bounds?: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    centerX: number;
+    centerY: number;
+  };
+}
+
 export interface LayoutedElements {
   nodes: Node[];
   edges: Edge[];
+  stageGroups?: StageGroupInfo[];
 }
 
-const DEFAULT_NODE_WIDTH = 280;
-const DEFAULT_NODE_HEIGHT = 140;
+const DEFAULT_NODE_WIDTH = 320;
+const DEFAULT_NODE_HEIGHT = 165;
 
 /**
  * Transforms roadmap milestones and edges into positioned React Flow nodes and edges using Dagre DAG layout.
+ * Organizes skills into progressive stages with improved spacing, alignment, and edge routing.
  */
 export function getLayoutedRoadmap(
   roadmap: CareerRoadmap | null | undefined,
   options: LayoutOptions = {}
 ): LayoutedElements {
   if (!roadmap || !Array.isArray(roadmap.milestones) || roadmap.milestones.length === 0) {
-    return { nodes: [], edges: [] };
+    return { nodes: [], edges: [], stageGroups: [] };
   }
 
   const direction = options.direction || 'TB';
@@ -37,11 +60,11 @@ export function getLayoutedRoadmap(
 
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 80, // Horizontal/cross-rank separation
-    ranksep: 100, // Distance between dependent tiers
-    align: 'DL',
-    marginx: 40,
-    marginy: 40,
+    nodesep: 90, // Generous cross-rank separation between parallel skills
+    ranksep: 130, // Distance between progressive tiers and stages
+    align: 'UL',
+    marginx: 50,
+    marginy: 50,
   });
 
   // Collect valid milestone IDs for boundary validation
@@ -86,9 +109,14 @@ export function getLayoutedRoadmap(
     console.error('[dagreLayout] Dagre calculation error, falling back to sequential grid:', layoutErr);
   }
 
-  // Map milestones by ID for fast lookup
+  // Map milestones and phases for fast lookup
   const milestoneMap = new Map<string, RoadmapMilestone>();
   roadmap.milestones.forEach((m) => milestoneMap.set(m.id, m));
+
+  const phaseMap = new Map<string, { title: string; order: number; description?: string }>();
+  if (Array.isArray(roadmap.phases)) {
+    roadmap.phases.forEach((p) => phaseMap.set(p.id, { title: p.title, order: p.order, description: p.description }));
+  }
 
   // 4. Transform into React Flow Node objects
   const targetPosition = isHorizontal ? Position.Left : Position.Top;
@@ -109,6 +137,8 @@ export function getLayoutedRoadmap(
       // Keep fallback coordinates
     }
 
+    const phaseInfo = phaseMap.get(milestone.phaseId);
+
     return {
       id: milestone.id,
       type: 'milestoneNode',
@@ -117,13 +147,15 @@ export function getLayoutedRoadmap(
         milestone,
         targetPosition,
         sourcePosition,
+        phaseTitle: phaseInfo?.title,
+        stageOrder: phaseInfo?.order,
       },
       targetPosition,
       sourcePosition,
     };
   });
 
-  // 5. Transform into React Flow Edge objects
+  // 5. Transform into React Flow Edge objects with smart semantic routing
   const edges: Edge[] = validEdges.map((edge) => {
     const sourceMilestone = milestoneMap.get(edge.source);
     const targetMilestone = milestoneMap.get(edge.target);
@@ -132,17 +164,26 @@ export function getLayoutedRoadmap(
       edge.isWarningGap ||
       (targetMilestone?.status === 'completed_with_warning' && sourceMilestone && !sourceMilestone.isKnown);
     const isCompleted = !isWarning && !!sourceMilestone?.isKnown && !!targetMilestone?.isKnown;
-    const isTargetAvailable = targetMilestone?.status === 'available';
+    const isTargetAvailable = targetMilestone?.status === 'available' || targetMilestone?.status === 'in_progress';
+    const isTargetInProgress = targetMilestone?.status === 'in_progress';
 
-    let strokeColor = '#334155'; // default slate-700
+    let strokeColor = '#334155'; // default slate-700 for locked
     let animated = false;
+    let strokeWidth = 2;
 
     if (isWarning) {
       strokeColor = '#f59e0b'; // amber-500
+      strokeWidth = 2.5;
     } else if (isCompleted) {
       strokeColor = '#10b981'; // emerald-500
+      strokeWidth = 2.5;
+    } else if (isTargetInProgress) {
+      strokeColor = '#38bdf8'; // sky-400
+      strokeWidth = 3;
+      animated = true;
     } else if (isTargetAvailable) {
       strokeColor = '#06b6d4'; // cyan-500
+      strokeWidth = 2.5;
       animated = true;
     }
 
@@ -152,19 +193,86 @@ export function getLayoutedRoadmap(
       target: edge.target,
       type: 'smoothstep',
       animated,
+      pathOptions: {
+        borderRadius: 16,
+      },
       style: {
         stroke: strokeColor,
-        strokeWidth: isWarning || isTargetAvailable ? 2.5 : 2,
-        strokeDasharray: isWarning ? '5 5' : undefined,
+        strokeWidth,
+        strokeDasharray: isWarning ? '6 4' : undefined,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: strokeColor,
-        width: 16,
-        height: 16,
+        width: 18,
+        height: 18,
       },
     };
   });
 
-  return { nodes, edges };
+  // 6. Compute Stage Groups breakdown for journey ribbon and stage organization
+  const phaseList =
+    Array.isArray(roadmap.phases) && roadmap.phases.length > 0
+      ? [...roadmap.phases].sort((a, b) => a.order - b.order)
+      : [
+          { id: 'foundation', title: 'Foundations', description: 'Essential core principles and prerequisites', order: 1 },
+          { id: 'core-skill', title: 'Core Skills', description: 'Primary engineering frameworks and architecture', order: 2 },
+          { id: 'tooling', title: 'Tooling & Systems', description: 'Tooling, infrastructure, and workflows', order: 3 },
+          { id: 'capstone', title: 'Capstone & Projects', description: 'Production-grade hands-on deliverables', order: 4 },
+          { id: 'career-prep', title: 'Career Readiness', description: 'Interview mastery and domain readiness', order: 5 },
+        ];
+
+  const stageGroups: StageGroupInfo[] = phaseList
+    .map((phase) => {
+      const phaseMilestones = roadmap.milestones.filter(
+        (m) => m.phaseId === phase.id || (!roadmap.phases?.length && m.category === phase.id)
+      );
+
+      if (phaseMilestones.length === 0) return null;
+
+      const milestoneIds = phaseMilestones.map((m) => m.id);
+      const totalHours = phaseMilestones.reduce((acc, m) => acc + (Number(m.estimatedHours) || 0), 0);
+      const completedCount = phaseMilestones.filter((m) => m.isKnown).length;
+      const totalCount = phaseMilestones.length;
+      const isCompleted = completedCount === totalCount;
+      const isActive = phaseMilestones.some((m) => m.status === 'available' || m.status === 'in_progress');
+
+      // Compute bounding coordinates
+      const stageNodePositions = nodes
+        .filter((n) => milestoneIds.includes(n.id))
+        .map((n) => n.position);
+
+      let bounds: StageGroupInfo['bounds'];
+      if (stageNodePositions.length > 0) {
+        const minX = Math.min(...stageNodePositions.map((p) => p.x));
+        const maxX = Math.max(...stageNodePositions.map((p) => p.x + nodeWidth));
+        const minY = Math.min(...stageNodePositions.map((p) => p.y));
+        const maxY = Math.max(...stageNodePositions.map((p) => p.y + nodeHeight));
+        bounds = {
+          minX,
+          maxX,
+          minY,
+          maxY,
+          centerX: (minX + maxX) / 2,
+          centerY: (minY + maxY) / 2,
+        };
+      }
+
+      return {
+        phaseId: phase.id,
+        title: phase.title,
+        description: phase.description,
+        order: phase.order,
+        milestoneIds,
+        totalHours,
+        completedCount,
+        totalCount,
+        isCompleted,
+        isActive,
+        bounds,
+      };
+    })
+    .filter(Boolean) as StageGroupInfo[];
+
+  return { nodes, edges, stageGroups };
 }

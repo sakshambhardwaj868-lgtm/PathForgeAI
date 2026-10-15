@@ -76,7 +76,7 @@ export function recalculateRoadmapState(
     let status: NodeStatus;
 
     if (allPrereqsSatisfied) {
-      status = isKnown ? 'completed' : 'available';
+      status = isKnown ? 'completed' : m.status === 'in_progress' ? 'in_progress' : 'available';
     } else {
       // Prerequisites are incomplete:
       // If user marked this skill as known, PRESERVE work with a gap warning!

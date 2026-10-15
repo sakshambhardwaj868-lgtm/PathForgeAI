@@ -24,6 +24,7 @@ const envSchema = z.object({
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_SECONDARY_MODEL: z.string().default('gemini-flash-lite-latest'),
   MONGODB_URI: z.string().optional(),
   JWT_SECRET: z.string().default('pathforge-ai-jwt-secret-session-key-2025-secure-default'),
   JWT_EXPIRES_IN: z.string().default('7d'),

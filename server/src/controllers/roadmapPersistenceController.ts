@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { SavedRoadmap } from '../models/SavedRoadmap';
+import { RoadmapShare } from '../models/RoadmapShare';
 import { Database } from '../config/db';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
 import { updateProgressSchema } from '../schemas/authSchemas';
@@ -143,10 +144,24 @@ export class RoadmapPersistenceController {
     const roadmapId = req.params.id;
 
     try {
-      // Find roadmap by roadmapId or MongoDB _id
-      const roadmap = await SavedRoadmap.findOne({
-        $or: [{ roadmapId }, { _id: roadmapId.match(/^[0-9a-fA-F]{24}$/) ? roadmapId : undefined }].filter(Boolean),
-      });
+      const isObjectId = Boolean(roadmapId.match(/^[0-9a-fA-F]{24}$/));
+      const idOrFilter = [{ roadmapId }, ...(isObjectId ? [{ _id: roadmapId }] : [])];
+
+      // 1. First look for roadmap owned by the authenticated user
+      let roadmap = userId
+        ? await SavedRoadmap.findOne({
+            userId,
+            $or: idOrFilter,
+          })
+        : null;
+
+      // 2. If not found under this user, query globally to check if it exists under another user
+      // so the 403 ownership check can properly trigger
+      if (!roadmap) {
+        roadmap = await SavedRoadmap.findOne({
+          $or: idOrFilter,
+        });
+      }
 
       if (!roadmap) {
         res.status(404).json({
@@ -203,9 +218,21 @@ export class RoadmapPersistenceController {
     const { milestoneId, isKnown } = validation.data;
 
     try {
-      const roadmap = await SavedRoadmap.findOne({
-        $or: [{ roadmapId }, { _id: roadmapId.match(/^[0-9a-fA-F]{24}$/) ? roadmapId : undefined }].filter(Boolean),
-      });
+      const isObjectId = Boolean(roadmapId.match(/^[0-9a-fA-F]{24}$/));
+      const idOrFilter = [{ roadmapId }, ...(isObjectId ? [{ _id: roadmapId }] : [])];
+
+      let roadmap = userId
+        ? await SavedRoadmap.findOne({
+            userId,
+            $or: idOrFilter,
+          })
+        : null;
+
+      if (!roadmap) {
+        roadmap = await SavedRoadmap.findOne({
+          $or: idOrFilter,
+        });
+      }
 
       if (!roadmap) {
         res.status(404).json({
@@ -267,9 +294,21 @@ export class RoadmapPersistenceController {
     const roadmapId = req.params.id;
 
     try {
-      const roadmap = await SavedRoadmap.findOne({
-        $or: [{ roadmapId }, { _id: roadmapId.match(/^[0-9a-fA-F]{24}$/) ? roadmapId : undefined }].filter(Boolean),
-      });
+      const isObjectId = Boolean(roadmapId.match(/^[0-9a-fA-F]{24}$/));
+      const idOrFilter = [{ roadmapId }, ...(isObjectId ? [{ _id: roadmapId }] : [])];
+
+      let roadmap = userId
+        ? await SavedRoadmap.findOne({
+            userId,
+            $or: idOrFilter,
+          })
+        : null;
+
+      if (!roadmap) {
+        roadmap = await SavedRoadmap.findOne({
+          $or: idOrFilter,
+        });
+      }
 
       if (!roadmap) {
         res.status(404).json({
@@ -286,6 +325,13 @@ export class RoadmapPersistenceController {
           error: 'Access denied. You cannot delete roadmaps owned by another user.',
         });
         return;
+      }
+
+      // Cascade delete any shares created for this roadmap
+      if (roadmap._id) {
+        await RoadmapShare.deleteMany({ roadmapId: roadmap._id }).catch((e) => {
+          console.warn('[RoadmapPersistenceController.deleteRoadmap] Non-fatal error cleaning shares:', e);
+        });
       }
 
       await roadmap.deleteOne();

@@ -6,10 +6,11 @@ import { FallbackService } from './fallbackService';
 
 export class AiService {
   private static readonly API_TIMEOUT_MS = 25000; // 25-second timeout guard to prevent frontend socket drops
+  private static readonly MAX_TRANSIENT_RETRIES = 1; // 1 retry for transient (503/500) errors
 
   /**
-   * Generates a structured career roadmap DAG using Gemini 3.8 Flash,
-   * with strict Zod validation, cycle detection, and automatic fallback safety.
+   * Generates a structured career roadmap DAG using Gemini models,
+   * with strict Zod validation, cycle detection, multi-model fallback chain, and automatic fallback safety.
    */
   public static async generateRoadmap(input: GenerateRoadmapInput): Promise<CareerRoadmap> {
     const { targetRole, targetCompanyType, experienceLevel, weeklyCommitmentHours } = input;
@@ -20,18 +21,35 @@ export class AiService {
       return FallbackService.getFallbackRoadmap(targetRole, weeklyCommitmentHours, experienceLevel);
     }
 
+    const primaryModel = env.GEMINI_MODEL || 'gemini-3.8-flash';
+    const secondaryModel = env.GEMINI_SECONDARY_MODEL || 'gemini-flash-lite-latest';
+
+    // 1. Attempt Primary Model
     try {
-      const liveRoadmap = await this.callGeminiApi(input);
+      const liveRoadmap = await this.callGeminiModel(input, primaryModel);
       return liveRoadmap;
-    } catch (err: any) {
-      console.warn(`[AiService] Live Gemini generation failed (${err.message}). Activating fallback resilience.`);
-      return FallbackService.getFallbackRoadmap(targetRole, weeklyCommitmentHours, experienceLevel);
+    } catch (primaryErr: any) {
+      console.warn(`[AiService] Primary model "${primaryModel}" failed (${primaryErr.message}).`);
     }
+
+    // 2. Attempt Secondary Model (if configured and different from primary)
+    if (secondaryModel && secondaryModel !== primaryModel) {
+      try {
+        console.info(`[AiService] Attempting secondary model "${secondaryModel}"...`);
+        const secondaryRoadmap = await this.callGeminiModel(input, secondaryModel);
+        return secondaryRoadmap;
+      } catch (secondaryErr: any) {
+        console.warn(`[AiService] Secondary model "${secondaryModel}" failed (${secondaryErr.message}).`);
+      }
+    }
+
+    // 3. Fallback Resilience: all live attempts exhausted
+    console.warn('[AiService] All live Gemini attempts failed. Activating fallback resilience.');
+    return FallbackService.getFallbackRoadmap(targetRole, weeklyCommitmentHours, experienceLevel);
   }
 
-  private static async callGeminiApi(input: GenerateRoadmapInput): Promise<CareerRoadmap> {
+  public static async callGeminiModel(input: GenerateRoadmapInput, model: string): Promise<CareerRoadmap> {
     const { targetRole, targetCompanyType, experienceLevel, weeklyCommitmentHours } = input;
-    const model = env.GEMINI_MODEL;
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     const systemPrompt = `You are an elite principal engineer and career architect.
@@ -39,7 +57,7 @@ Reverse-engineer the user's dream job into an actionable, comprehensive Directed
 
 STRICT GUIDELINES:
 1. Break the roadmap into 3 to 4 progressive sequential phases (e.g. Foundations, Core Specialization, Advanced Engineering, Capstone & Production Readiness).
-2. Generate 8 to 12 high-impact, logically sequenced milestone nodes forming a complete learning journey.
+2. Generate 6 to 10 high-impact, logically sequenced milestone nodes forming a complete learning journey.
 3. Every milestone MUST have a unique, stable id (e.g. "ms-fund-1", "ms-core-2", "ms-capstone-1").
 4. Declare prerequisite dependencies using "prerequisiteIds" pointing ONLY to earlier milestone ids.
 5. NO CYCLES. The graph MUST be a valid Directed Acyclic Graph (DAG).
@@ -237,10 +255,9 @@ Synthesize the complete structured career roadmap with comprehensive course curr
       },
     };
 
-    const MAX_RETRIES = 1; // 1 retry (2 total attempts) to preserve responsiveness
-    let lastError: Error = new Error('Gemini API call failed.');
+    let lastError: Error = new Error(`Gemini model "${model}" call failed.`);
 
-    for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+    for (let attempt = 1; attempt <= this.MAX_TRANSIENT_RETRIES + 1; attempt++) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.API_TIMEOUT_MS);
 
@@ -259,13 +276,25 @@ Synthesize the complete structured career roadmap with comprehensive course curr
 
         if (!response.ok) {
           const errorText = await response.text();
-          if ((response.status === 503 || response.status === 429) && attempt <= MAX_RETRIES) {
+
+          // Transient errors: 503 (High Demand / Spikes), 500, 502, 504 -> retry with backoff
+          const isTransient = response.status === 503 || response.status === 500 || response.status === 502 || response.status === 504;
+          if (isTransient && attempt <= this.MAX_TRANSIENT_RETRIES) {
             const backoffMs = attempt * 1500;
-            console.warn(`[AiService] Gemini API returned HTTP ${response.status} (attempt ${attempt}/${MAX_RETRIES + 1}). Retrying in ${backoffMs}ms...`);
+            console.warn(`[AiService] Gemini model "${model}" returned HTTP ${response.status} (attempt ${attempt}/${this.MAX_TRANSIENT_RETRIES + 1}). Retrying in ${backoffMs}ms...`);
             await new Promise((resolve) => setTimeout(resolve, backoffMs));
             continue;
           }
-          throw new Error(`Gemini API returned HTTP ${response.status}: ${errorText.slice(0, 200)}`);
+
+          // Non-transient errors: 429 quota exhaustion, 404 retired model -> fail fast to next model
+          if (response.status === 429) {
+            throw new Error(`Gemini model "${model}" quota exhausted (HTTP 429).`);
+          }
+          if (response.status === 404) {
+            throw new Error(`Gemini model "${model}" not found or deprecated (HTTP 404).`);
+          }
+
+          throw new Error(`Gemini model "${model}" returned HTTP ${response.status}: ${errorText.slice(0, 150)}`);
         }
 
         const responseData = (await response.json()) as any;
@@ -274,18 +303,18 @@ Synthesize the complete structured career roadmap with comprehensive course curr
         const generatedText = candidate?.content?.parts?.[0]?.text;
 
         if (!generatedText || generatedText.trim() === '') {
-          throw new Error(`Gemini API response contained no candidate text (finishReason: ${finishReason || 'UNKNOWN'}).`);
+          throw new Error(`Gemini model "${model}" response contained no candidate text (finishReason: ${finishReason || 'UNKNOWN'}).`);
         }
 
         if (finishReason === 'MAX_TOKENS') {
-          throw new Error('Gemini output exceeded max output tokens and was truncated.');
+          throw new Error(`Gemini model "${model}" output exceeded max output tokens and was truncated.`);
         }
 
         let parsedJson: any;
         try {
           parsedJson = JSON.parse(generatedText);
         } catch (parseError: any) {
-          throw new Error(`Failed to parse AI output as JSON: ${parseError.message}`);
+          throw new Error(`Failed to parse AI output from model "${model}" as JSON: ${parseError.message}`);
         }
 
         // Ensure user input overrides
@@ -295,24 +324,39 @@ Synthesize the complete structured career roadmap with comprehensive course curr
         parsedJson.weeklyCommitmentHours = weeklyCommitmentHours;
 
         // Validate with Zod + Cycle Detector + Prerequisite Verifier
-        const validated = validateAndSanitizeRoadmap(parsedJson, 'live_ai');
+        const validated = validateAndSanitizeRoadmap(parsedJson, 'live_ai', model);
 
         if (!validated.success) {
-          throw new Error(`Graph validation rejected AI output: ${validated.errors.join('; ')}`);
+          throw new Error(`Graph validation rejected AI output from model "${model}": ${validated.errors.join('; ')}`);
         }
 
         return validated.data;
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
+
         if (fetchErr.name === 'AbortError') {
-          lastError = new Error(`Gemini API call exceeded timeout threshold of ${this.API_TIMEOUT_MS}ms.`);
-        } else {
-          lastError = fetchErr;
+          // Timeout threshold reached: fail fast to secondary model
+          throw new Error(`Gemini model "${model}" call exceeded timeout threshold of ${this.API_TIMEOUT_MS}ms.`);
         }
 
-        if (attempt <= MAX_RETRIES) {
+        lastError = fetchErr;
+
+        // If it's a known non-transient error, throw immediately without retrying the same model
+        const isNonRetryable =
+          lastError.message.includes('HTTP 429') ||
+          lastError.message.includes('quota exhausted') ||
+          lastError.message.includes('HTTP 404') ||
+          lastError.message.includes('exceeded timeout') ||
+          lastError.message.includes('Graph validation rejected') ||
+          lastError.message.includes('Failed to parse AI output');
+
+        if (isNonRetryable) {
+          throw lastError;
+        }
+
+        if (attempt <= this.MAX_TRANSIENT_RETRIES) {
           const backoffMs = attempt * 1500;
-          console.warn(`[AiService] Gemini attempt ${attempt} failed (${lastError.message}). Retrying in ${backoffMs}ms...`);
+          console.warn(`[AiService] Gemini model "${model}" attempt ${attempt} failed (${lastError.message}). Retrying in ${backoffMs}ms...`);
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
           continue;
         }
@@ -321,6 +365,6 @@ Synthesize the complete structured career roadmap with comprehensive course curr
       }
     }
 
-    throw lastError || new Error('All Gemini API attempts failed.');
+    throw lastError || new Error(`All attempts for model "${model}" failed.`);
   }
 }

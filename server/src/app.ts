@@ -13,9 +13,28 @@ export const createApp = (): Express => {
 
   // Security Middleware
   app.use(helmet());
+
+  const rawOrigins = env.CLIENT_ORIGIN || 'http://localhost:5173';
+  const allowedOrigins = rawOrigins
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
   app.use(
     cors({
-      origin: env.NODE_ENV === 'production' ? env.CLIENT_ORIGIN : true,
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin || env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+        const normalized = requestOrigin.replace(/\/+$/, '');
+        if (allowedOrigins.includes(normalized) || allowedOrigins.includes('*')) {
+          return callback(null, true);
+        }
+        if (/^https:\/\/.*\.vercel\.app$/.test(normalized)) {
+          return callback(null, true);
+        }
+        return callback(new Error(`CORS blocked for origin: ${requestOrigin}`));
+      },
       credentials: true,
     })
   );

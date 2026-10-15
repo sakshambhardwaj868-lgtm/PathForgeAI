@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Sparkles, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Lock, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Flame } from 'lucide-react';
 
 interface GraphLegendProps {
   onClose: () => void;
@@ -41,6 +41,16 @@ export const GraphLegend: React.FC<GraphLegendProps> = ({ onClose }) => {
           <div>
             <span className="font-semibold text-cyan-300 block">Ready to Learn</span>
             <span className="text-[10px] text-slate-400">Prerequisites satisfied</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span className="w-5 h-5 rounded bg-sky-950 border border-sky-800 flex items-center justify-center flex-shrink-0">
+            <Flame className="w-3 h-3 text-sky-400" />
+          </span>
+          <div>
+            <span className="font-semibold text-sky-300 block">In Progress</span>
+            <span className="text-[10px] text-slate-400">Currently being learned</span>
           </div>
         </div>
 

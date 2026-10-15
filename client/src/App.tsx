@@ -7,6 +7,7 @@ import { LoadingState } from './components/common/LoadingState';
 import { EmptyState } from './components/common/EmptyState';
 import { ErrorState } from './components/common/ErrorState';
 import { AuthModal } from './components/auth/AuthModal';
+import { MyRoadmapsDashboard } from './components/dashboard/MyRoadmapsDashboard';
 import { useRoadmapStore } from './store/useRoadmapStore';
 import { useAuthStore } from './store/useAuthStore';
 
@@ -16,7 +17,10 @@ export default function App() {
   const error = useRoadmapStore((s) => s.error);
   const isReadOnly = useRoadmapStore((s) => s.isReadOnly);
   const shareError = useRoadmapStore((s) => s.shareError);
+  const currentView = useRoadmapStore((s) => s.currentView);
+  const setCurrentView = useRoadmapStore((s) => s.setCurrentView);
   const generateRoadmap = useRoadmapStore((s) => s.generateRoadmap);
+  const retryLastGeneration = useRoadmapStore((s) => s.retryLastGeneration);
   const loadSharedRoadmap = useRoadmapStore((s) => s.loadSharedRoadmap);
   const checkAuth = useAuthStore((s) => s.checkAuth);
 
@@ -39,7 +43,12 @@ export default function App() {
       return;
     }
 
-    // 2. Otherwise initialize user session & default starter roadmap
+    // 2. Check for dashboard view in pathname or query
+    if (pathname === '/dashboard' || searchParams.get('view') === 'dashboard') {
+      setCurrentView('dashboard');
+    }
+
+    // 3. Otherwise initialize user session & default starter roadmap
     checkAuth();
 
     if (!roadmap) {
@@ -60,23 +69,18 @@ export default function App() {
       {/* Header Bar: Shared Read-Only Header OR Interactive Creator Header */}
       {isReadOnly ? <SharedRoadmapHeader /> : <RoadmapPromptBar />}
 
-      {/* Main Interactive Graph Viewport */}
+      {/* Main Viewport: Dashboard View OR Interactive Graph Canvas View */}
       <main className="flex-1 w-full h-full relative overflow-hidden flex flex-col">
-        {isLoading ? (
+        {currentView === 'dashboard' ? (
+          <MyRoadmapsDashboard onBackToSearch={() => setCurrentView('graph')} />
+        ) : isLoading ? (
           <LoadingState />
         ) : shareError ? (
           <SharedLinkErrorView message={shareError} />
         ) : error && !roadmap ? (
           <ErrorState
             message={error}
-            onRetry={() =>
-              generateRoadmap({
-                targetRole: 'Full Stack Developer at a Climate Tech Startup',
-                targetCompanyType: 'Clean Energy Series-A',
-                experienceLevel: 'Beginner',
-                weeklyCommitmentHours: 15,
-              })
-            }
+            onRetry={retryLastGeneration}
           />
         ) : !roadmap ? (
           <EmptyState />

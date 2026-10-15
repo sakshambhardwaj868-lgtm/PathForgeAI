@@ -7,7 +7,7 @@ import {
   ApiResponse,
   RoadmapProgressMetrics,
 } from '../types/roadmap';
-import { getLayoutedRoadmap } from '../utils/dagreLayout';
+import { getLayoutedRoadmap, StageGroupInfo } from '../utils/dagreLayout';
 import { recalculateRoadmapState } from '../utils/replanEngine';
 import { safeFetchJson } from '../services/apiClient';
 import { getClientOfflineFallback } from '../data/fallbackService';
@@ -60,6 +60,7 @@ interface RoadmapStoreState {
   roadmap: CareerRoadmap | null;
   nodes: Node[];
   edges: Edge[];
+  stageGroups: StageGroupInfo[];
   metrics: RoadmapProgressMetrics;
   selectedMilestoneId: string | null;
   layoutDirection: 'TB' | 'LR';
@@ -74,14 +75,18 @@ interface RoadmapStoreState {
     label?: string;
   } | null;
   shareError: string | null;
+  lastAttemptedInput: GenerateRoadmapRequest | null;
+  currentView: 'graph' | 'dashboard';
 
   // Actions
+  setCurrentView: (view: 'graph' | 'dashboard') => void;
   setRoadmap: (roadmap: CareerRoadmap) => void;
   setLayoutDirection: (direction: 'TB' | 'LR') => void;
   selectMilestone: (id: string | null) => void;
   setActiveFilter: (filter: string) => void;
   clearRoadmap: () => void;
   generateRoadmap: (input: GenerateRoadmapRequest) => Promise<boolean>;
+  retryLastGeneration: () => Promise<boolean>;
   loadOfflineFallback: (targetRole?: string) => void;
   toggleMilestoneKnown: (milestoneId: string) => void;
   setWeeklyCommitmentHours: (hours: number) => void;
@@ -95,12 +100,13 @@ const initialRoadmap = loadInitialRoadmap();
 const initialRecalc = initialRoadmap ? recalculateRoadmapState(initialRoadmap) : null;
 const initialGraph = initialRecalc
   ? getLayoutedRoadmap(initialRecalc.roadmap, { direction: 'TB' })
-  : { nodes: [], edges: [] };
+  : { nodes: [], edges: [], stageGroups: [] };
 
 export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   roadmap: initialRecalc ? initialRecalc.roadmap : null,
   nodes: initialGraph.nodes,
   edges: initialGraph.edges,
+  stageGroups: initialGraph.stageGroups || [],
   metrics: initialRecalc ? initialRecalc.metrics : DEFAULT_METRICS,
   selectedMilestoneId: initialRecalc?.roadmap.milestones[0]?.id || null,
   layoutDirection: 'TB',
@@ -110,11 +116,17 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   isReadOnly: false,
   sharedMetadata: null,
   shareError: null,
+  lastAttemptedInput: null,
+  currentView: 'graph',
+
+  setCurrentView: (view: 'graph' | 'dashboard') => {
+    set({ currentView: view });
+  },
 
   setRoadmap: (rawRoadmap: CareerRoadmap) => {
     const { layoutDirection } = get();
     const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(roadmap);
 
@@ -122,12 +134,14 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
       selectedMilestoneId: roadmap.milestones[0]?.id || null,
       isReadOnly: false,
       sharedMetadata: null,
       shareError: null,
       error: null,
+      currentView: 'graph',
     });
   },
 
@@ -137,11 +151,12 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       set({ layoutDirection: direction });
       return;
     }
-    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(roadmap, { direction });
     set({
       layoutDirection: direction,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
     });
   },
 
@@ -159,14 +174,16 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap: null,
       nodes: [],
       edges: [],
+      stageGroups: [],
       metrics: DEFAULT_METRICS,
       selectedMilestoneId: null,
       error: null,
+      lastAttemptedInput: null,
     });
   },
 
   generateRoadmap: async (input: GenerateRoadmapRequest): Promise<boolean> => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, lastAttemptedInput: input });
 
     const fetchResult = await safeFetchJson<ApiResponse<CareerRoadmap>>(
       '/api/v1/roadmap/generate',
@@ -189,7 +206,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const rawRoadmap = fetchResult.data.data;
     const { layoutDirection } = get();
     const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(roadmap);
 
@@ -197,13 +214,28 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
       selectedMilestoneId: roadmap.milestones[0]?.id || null,
       isLoading: false,
       error: null,
+      currentView: 'graph',
     });
 
     return true;
+  },
+
+  retryLastGeneration: async (): Promise<boolean> => {
+    const { lastAttemptedInput, generateRoadmap } = get();
+    if (lastAttemptedInput) {
+      return generateRoadmap(lastAttemptedInput);
+    }
+    return generateRoadmap({
+      targetRole: 'Full Stack Developer at a Climate Tech Startup',
+      targetCompanyType: 'Innovative Tech Company',
+      experienceLevel: 'Beginner',
+      weeklyCommitmentHours: 15,
+    });
   },
 
   loadOfflineFallback: (targetRole?: string) => {
@@ -219,7 +251,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     );
 
     const { roadmap, metrics } = recalculateRoadmapState(rawFallback);
-    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(roadmap);
 
@@ -227,10 +259,12 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
       selectedMilestoneId: roadmap.milestones[0]?.id || null,
       isLoading: false,
       error: null,
+      currentView: 'graph',
     });
   },
 
@@ -254,7 +288,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
 
     // 2. Perform topological recalculation with work preservation & gap detection
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(updatedRoadmap);
 
@@ -262,6 +296,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap: updatedRoadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
     });
 
@@ -286,7 +321,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     };
 
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(updatedRoadmap);
 
@@ -294,6 +329,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap: updatedRoadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
     });
 
@@ -318,7 +354,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
 
     const modifiedRoadmap = { ...roadmap, milestones: clearedMilestones };
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(updatedRoadmap);
 
@@ -326,6 +362,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap: updatedRoadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
     });
 
@@ -350,7 +387,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
 
     const modifiedRoadmap = { ...roadmap, milestones: completedMilestones };
     const { roadmap: updatedRoadmap, metrics } = recalculateRoadmapState(modifiedRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(updatedRoadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(updatedRoadmap);
 
@@ -358,6 +395,7 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
       roadmap: updatedRoadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
     });
 
@@ -396,12 +434,13 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
     const { shareInfo, roadmap: rawRoadmap } = fetchResult.data.data;
     const { layoutDirection } = get();
     const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
-    const { nodes, edges } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
+    const { nodes, edges, stageGroups } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
     set({
       roadmap,
       nodes,
       edges,
+      stageGroups: stageGroups || [],
       metrics,
       selectedMilestoneId: roadmap.milestones[0]?.id || null,
       isReadOnly: true,

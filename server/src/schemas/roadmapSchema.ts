@@ -77,7 +77,7 @@ export const roadmapMilestoneSchema = z.object({
   phaseId: z.string().min(2),
   estimatedHours: z.number().int().positive().min(5).max(120),
   prerequisiteIds: z.array(z.string()).default([]),
-  status: z.enum(['locked', 'available', 'completed', 'completed_with_warning']).default('available'),
+  status: z.enum(['locked', 'available', 'in_progress', 'completed', 'completed_with_warning']).default('available'),
   isKnown: z.boolean().default(false),
   actionableData: actionableDataSchema,
 });
@@ -215,7 +215,8 @@ export function buildEdgesFromMilestones(milestones: RoadmapMilestone[]): Roadma
  */
 export function validateAndSanitizeRoadmap(
   raw: unknown,
-  source: 'live_ai' | 'cached_fallback' = 'live_ai'
+  source: 'live_ai' | 'cached_fallback' = 'live_ai',
+  modelUsed?: string
 ): { success: true; data: CareerRoadmap } | { success: false; errors: string[] } {
   const parseResult = rawCareerRoadmapSchema.safeParse(raw);
   if (!parseResult.success) {
@@ -270,6 +271,7 @@ export function validateAndSanitizeRoadmap(
     weeklyCommitmentHours: roadmapData.weeklyCommitmentHours,
     totalEstimatedWeeks: calculatedWeeks,
     source,
+    ...(modelUsed ? { modelUsed } : {}),
     phases: roadmapData.phases,
     intermediateRoles: roadmapData.intermediateRoles,
     milestones: milestonesWithInitialStatus as RoadmapMilestone[],

@@ -42,6 +42,9 @@ export class FallbackService {
       const rawJson = JSON.parse(rawText);
 
       // Apply request overrides
+      if (targetRole && targetRole.trim()) {
+        rawJson.targetRole = targetRole.trim();
+      }
       rawJson.weeklyCommitmentHours = weeklyCommitmentHours;
       rawJson.experienceLevel = experienceLevel;
 

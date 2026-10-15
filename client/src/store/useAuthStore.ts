@@ -14,7 +14,16 @@ export interface SavedRoadmapSummary {
   targetRole: string;
   targetCompanyType: string;
   experienceLevel: string;
+  weeklyCommitmentHours?: number;
+  totalEstimatedWeeks?: number;
+  source?: string;
+  milestonesCount?: number;
+  completedMilestonesCount?: number;
+  completionPercentage?: number;
+  createdAt?: string;
   updatedAt: string;
+  milestones?: any[];
+  metrics?: any;
 }
 
 interface AuthStoreState {
@@ -26,6 +35,10 @@ interface AuthStoreState {
   isAuthModalOpen: boolean;
   authModalMode: 'login' | 'register';
   savedRoadmaps: SavedRoadmapSummary[];
+  isFetchingRoadmaps: boolean;
+  fetchRoadmapsError: string | null;
+  isDeletingRoadmapId: string | null;
+  deleteError: string | null;
   isSavingToCloud: boolean;
   lastSavedAt: string | null;
 
@@ -54,6 +67,10 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   isAuthModalOpen: false,
   authModalMode: 'login',
   savedRoadmaps: [],
+  isFetchingRoadmaps: false,
+  fetchRoadmapsError: null,
+  isDeletingRoadmapId: null,
+  deleteError: null,
   isSavingToCloud: false,
   lastSavedAt: null,
 
@@ -223,7 +240,12 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
 
   fetchSavedRoadmaps: async () => {
     const { token, isAuthenticated } = get();
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated || !token) {
+      set({ isFetchingRoadmaps: false });
+      return;
+    }
+
+    set({ isFetchingRoadmaps: true, fetchRoadmapsError: null });
 
     try {
       const result = await safeFetchJson<any>('/api/v1/roadmaps/my', {
@@ -233,18 +255,47 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       });
 
       if (result.ok && result.data?.success && Array.isArray(result.data.data)) {
-        const summaries: SavedRoadmapSummary[] = result.data.data.map((item: any) => ({
-          _id: item._id,
-          roadmapId: item.roadmapId,
-          targetRole: item.targetRole,
-          targetCompanyType: item.targetCompanyType,
-          experienceLevel: item.experienceLevel,
-          updatedAt: item.updatedAt,
-        }));
-        set({ savedRoadmaps: summaries });
+        const summaries: SavedRoadmapSummary[] = result.data.data.map((item: any) => {
+          const milestones = Array.isArray(item.milestones) ? item.milestones : [];
+          const totalMilestones = milestones.length;
+          const completedCount = milestones.filter(
+            (m: any) => m.isKnown || m.status === 'completed'
+          ).length;
+          const completionPercentage =
+            totalMilestones > 0
+              ? Math.round((completedCount / totalMilestones) * 100)
+              : item.metrics?.completionPercentage || 0;
+
+          return {
+            _id: item._id,
+            roadmapId: item.roadmapId,
+            targetRole: item.targetRole,
+            targetCompanyType: item.targetCompanyType,
+            experienceLevel: item.experienceLevel,
+            weeklyCommitmentHours: item.weeklyCommitmentHours,
+            totalEstimatedWeeks: item.totalEstimatedWeeks,
+            source: item.source,
+            milestonesCount: totalMilestones,
+            completedMilestonesCount: completedCount,
+            completionPercentage,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            milestones: item.milestones,
+            metrics: item.metrics,
+          };
+        });
+        set({ savedRoadmaps: summaries, isFetchingRoadmaps: false, fetchRoadmapsError: null });
+      } else {
+        const errorMsg =
+          result.error || result.data?.error || 'Failed to fetch saved roadmaps from cloud.';
+        set({ isFetchingRoadmaps: false, fetchRoadmapsError: errorMsg });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to fetch saved roadmaps from cloud:', err);
+      set({
+        isFetchingRoadmaps: false,
+        fetchRoadmapsError: err.message || 'Network error fetching saved roadmaps.',
+      });
     }
   },
 
@@ -272,6 +323,8 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     const { token, isAuthenticated } = get();
     if (!isAuthenticated || !token) return false;
 
+    set({ isDeletingRoadmapId: id, deleteError: null });
+
     try {
       const result = await safeFetchJson<any>(`/api/v1/roadmaps/${id}`, {
         method: 'DELETE',
@@ -281,11 +334,20 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       });
 
       if (result.ok && result.data?.success) {
-        get().fetchSavedRoadmaps();
+        set({ isDeletingRoadmapId: null, deleteError: null });
+        await get().fetchSavedRoadmaps();
         return true;
       }
+
+      const errorMsg =
+        result.error || result.data?.error || 'Failed to delete roadmap from cloud storage.';
+      set({ isDeletingRoadmapId: null, deleteError: errorMsg });
       return false;
-    } catch {
+    } catch (err: any) {
+      set({
+        isDeletingRoadmapId: null,
+        deleteError: err.message || 'Network error while deleting roadmap.',
+      });
       return false;
     }
   },

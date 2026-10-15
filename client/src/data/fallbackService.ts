@@ -34,6 +34,9 @@ export function getClientOfflineFallback(
 
   // Deep clone to ensure immutability
   const cloned: CareerRoadmap = JSON.parse(JSON.stringify(baseData));
+  if (targetRole && targetRole.trim()) {
+    cloned.targetRole = targetRole.trim();
+  }
   cloned.weeklyCommitmentHours = weeklyCommitmentHours || cloned.weeklyCommitmentHours;
   cloned.experienceLevel = experienceLevel || cloned.experienceLevel;
   cloned.source = 'cached_fallback';

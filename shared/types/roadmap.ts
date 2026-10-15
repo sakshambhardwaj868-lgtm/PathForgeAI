@@ -12,7 +12,7 @@ export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced';
  * - 'completed': Verified completed with all prerequisites met.
  * - 'completed_with_warning': Marked completed by user, but one or more prerequisites are currently uncompleted. Preserves completion without erasing work!
  */
-export type NodeStatus = 'locked' | 'available' | 'completed' | 'completed_with_warning';
+export type NodeStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'completed_with_warning';
 
 export type MilestoneCategory = 'foundation' | 'core-skill' | 'tooling' | 'capstone' | 'career-prep';
 
@@ -126,6 +126,7 @@ export interface CareerRoadmap {
   weeklyCommitmentHours: number;
   totalEstimatedWeeks: number;
   source: 'live_ai' | 'cached_fallback';
+  modelUsed?: string;
   phases: RoadmapPhase[];
   intermediateRoles: IntermediateRole[];
   milestones: RoadmapMilestone[];

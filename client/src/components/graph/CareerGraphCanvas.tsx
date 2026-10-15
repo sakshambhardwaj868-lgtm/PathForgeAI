@@ -13,6 +13,7 @@ import { GraphToolbar } from './GraphToolbar';
 import { NodeDetailPanel } from './NodeDetailPanel';
 import { RoadmapProgressHUD } from './RoadmapProgressHUD';
 import { GraphLegend } from '../common/GraphLegend';
+import { CareerStageJourneyBar } from './CareerStageJourneyBar';
 import { useRoadmapStore } from '../../store/useRoadmapStore';
 import { RoadmapMilestone } from '../../types/roadmap';
 
@@ -37,7 +38,7 @@ const InnerCareerGraphCanvas: React.FC = () => {
   useEffect(() => {
     if (nodes.length > 0) {
       const timer = setTimeout(() => {
-        fitView({ padding: 0.25, duration: 400 });
+        fitView({ padding: 0.2, duration: 400 });
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -64,6 +65,8 @@ const InnerCareerGraphCanvas: React.FC = () => {
         return '#10b981'; // emerald-500
       case 'completed_with_warning':
         return '#f59e0b'; // amber-500
+      case 'in_progress':
+        return '#38bdf8'; // sky-400
       case 'available':
         return '#06b6d4'; // cyan-500
       case 'locked':
@@ -83,8 +86,8 @@ const InnerCareerGraphCanvas: React.FC = () => {
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           fitView
-          minZoom={0.2}
-          maxZoom={2.0}
+          minZoom={0.15}
+          maxZoom={2.5}
           proOptions={{ hideAttribution: true }}
           className="bg-obsidian-950"
         >
@@ -94,6 +97,8 @@ const InnerCareerGraphCanvas: React.FC = () => {
             size={1.5}
             color="#1e293b"
           />
+
+          <CareerStageJourneyBar />
 
           {showMinimap && (
             <MiniMap

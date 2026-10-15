@@ -80,3 +80,10 @@ export const publicShareLimiter = createSlidingRateLimiter({
   maxRequests: 60,
   message: 'Public roadmap view rate limit exceeded. Please try again shortly.',
 });
+
+// 30 auth requests per 15m per IP (prevents brute-force credential stuffing)
+export const authLimiter = createSlidingRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 30,
+  message: 'Too many authentication attempts. Please wait 15 minutes before retrying.',
+});
