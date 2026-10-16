@@ -33,7 +33,7 @@ export class RoadmapPersistenceController {
       return;
     }
 
-    const roadmapId = roadmapData.id || `rm-${Date.now()}`;
+    const roadmapId = roadmapData.roadmapId || roadmapData.id || `rm-${Date.now()}`;
 
     try {
       // Find existing roadmap owned by this user

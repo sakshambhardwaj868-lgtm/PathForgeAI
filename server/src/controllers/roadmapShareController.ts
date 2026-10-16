@@ -32,7 +32,7 @@ export class RoadmapShareController {
     }
 
     const roadmapIdentifier = req.params.id;
-    if (!roadmapIdentifier) {
+    if (!roadmapIdentifier || roadmapIdentifier === 'undefined') {
       res.status(400).json({
         success: false,
         error: 'Roadmap ID parameter is required.',
@@ -40,15 +40,26 @@ export class RoadmapShareController {
       return;
     }
 
-    // 1. Locate roadmap by MongoDB _id or custom roadmapId
+    const isObjectId = Boolean(roadmapIdentifier.match(/^[0-9a-fA-F]{24}$/));
+    const idOrFilter = [
+      { roadmapId: roadmapIdentifier },
+      ...(isObjectId ? [{ _id: roadmapIdentifier }] : []),
+    ];
+
+    // 1. Locate roadmap by MongoDB _id or custom roadmapId (scoped to owner first)
     let roadmap;
     try {
       roadmap = await SavedRoadmap.findOne({
-        $or: [
-          { roadmapId: roadmapIdentifier },
-          { _id: roadmapIdentifier.match(/^[0-9a-fA-F]{24}$/) ? roadmapIdentifier : undefined },
-        ].filter(Boolean),
+        userId,
+        $or: idOrFilter,
       });
+
+      // If not found under this user, query globally to allow 403 Forbidden check to trigger
+      if (!roadmap) {
+        roadmap = await SavedRoadmap.findOne({
+          $or: idOrFilter,
+        });
+      }
     } catch (err: any) {
       console.error('[RoadmapShareController.createShareLink] DB lookup error:', err);
       res.status(500).json({
@@ -157,14 +168,31 @@ export class RoadmapShareController {
     }
 
     const roadmapIdentifier = req.params.id;
+    if (!roadmapIdentifier || roadmapIdentifier === 'undefined') {
+      res.status(400).json({
+        success: false,
+        error: 'Roadmap ID parameter is required.',
+      });
+      return;
+    }
+
+    const isObjectId = Boolean(roadmapIdentifier.match(/^[0-9a-fA-F]{24}$/));
+    const idOrFilter = [
+      { roadmapId: roadmapIdentifier },
+      ...(isObjectId ? [{ _id: roadmapIdentifier }] : []),
+    ];
 
     try {
-      const roadmap = await SavedRoadmap.findOne({
-        $or: [
-          { roadmapId: roadmapIdentifier },
-          { _id: roadmapIdentifier.match(/^[0-9a-fA-F]{24}$/) ? roadmapIdentifier : undefined },
-        ].filter(Boolean),
+      let roadmap = await SavedRoadmap.findOne({
+        userId,
+        $or: idOrFilter,
       });
+
+      if (!roadmap) {
+        roadmap = await SavedRoadmap.findOne({
+          $or: idOrFilter,
+        });
+      }
 
       if (!roadmap) {
         res.status(404).json({
@@ -238,14 +266,31 @@ export class RoadmapShareController {
     }
 
     const { id: roadmapIdentifier, shareId } = req.params;
+    if (!roadmapIdentifier || roadmapIdentifier === 'undefined') {
+      res.status(400).json({
+        success: false,
+        error: 'Roadmap ID parameter is required.',
+      });
+      return;
+    }
+
+    const isObjectId = Boolean(roadmapIdentifier.match(/^[0-9a-fA-F]{24}$/));
+    const idOrFilter = [
+      { roadmapId: roadmapIdentifier },
+      ...(isObjectId ? [{ _id: roadmapIdentifier }] : []),
+    ];
 
     try {
-      const roadmap = await SavedRoadmap.findOne({
-        $or: [
-          { roadmapId: roadmapIdentifier },
-          { _id: roadmapIdentifier.match(/^[0-9a-fA-F]{24}$/) ? roadmapIdentifier : undefined },
-        ].filter(Boolean),
+      let roadmap = await SavedRoadmap.findOne({
+        userId,
+        $or: idOrFilter,
       });
+
+      if (!roadmap) {
+        roadmap = await SavedRoadmap.findOne({
+          $or: idOrFilter,
+        });
+      }
 
       if (!roadmap) {
         res.status(404).json({

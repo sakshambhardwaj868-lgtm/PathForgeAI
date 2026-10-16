@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { useRoadmapStore } from '../store/useRoadmapStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { SharedRoadmapHeader } from '../components/share/SharedRoadmapHeader';
@@ -125,5 +125,68 @@ describe('Phase 7 — Secure Shareable Roadmap Links (Frontend)', () => {
       expect(screen.getByText(/Expiration Duration/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Create Secure Share Link/i })).toBeInTheDocument();
     });
+  });
+
+  it('ShareModal successfully creates a secure share link using the resolved target ID (never undefined)', async () => {
+    const fallback = getClientOfflineFallback('Full Stack Developer at a Climate Tech Startup');
+    useRoadmapStore.getState().setRoadmap(fallback);
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { id: 'usr-1', email: 'test@example.com', name: 'Tester' },
+      token: 'mock-jwt-token',
+      lastSavedRoadmapId: 'rf-climate-tech-verified',
+    });
+
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      requestedUrls.push(url);
+      if (url.includes('/api/v1/roadmaps/save')) {
+        return {
+          ok: true,
+          headers: { get: () => 'application/json' },
+          text: async () =>
+            JSON.stringify({
+              success: true,
+              data: { roadmapId: 'rf-climate-tech-verified', _id: 'mongo-id-123' },
+            }),
+        };
+      }
+      if (url.includes('/shares') && init?.method === 'POST') {
+        return {
+          ok: true,
+          headers: { get: () => 'application/json' },
+          text: async () =>
+            JSON.stringify({
+              success: true,
+              data: {
+                id: 'share-123',
+                shareUrl: 'https://pathforge.ai/share/mocktoken123',
+                tokenPrefix: 'pfg_mock',
+                createdAt: new Date().toISOString(),
+              },
+            }),
+        };
+      }
+      return {
+        ok: true,
+        headers: { get: () => 'application/json' },
+        text: async () => JSON.stringify({ success: true, count: 0, data: [] }),
+      };
+    }) as any;
+
+    render(<ShareModal isOpen={true} onClose={() => {}} />);
+
+    const createBtn = await screen.findByRole('button', { name: /Create Secure Share Link/i });
+    fireEvent.click(createBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Share link generated securely!/i)).toBeInTheDocument();
+    });
+
+    // Verify requested URLs never sent 'undefined'
+    const sharePostUrl = requestedUrls.find((u) => u.includes('/shares') && !u.includes('undefined'));
+    expect(sharePostUrl).toBeDefined();
+    expect(requestedUrls.some((u) => u.includes('/undefined/shares'))).toBe(false);
   });
 });

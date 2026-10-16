@@ -504,6 +504,228 @@ async function runTests() {
       assert.strictEqual(res.status, 401);
       assert.strictEqual(data.success, false);
     });
+
+    console.log('\n--- SECTION 9: Production Regression — Roadmap ID Resolution & Multi-User Isolation ---');
+
+    const origDbReady = Database.isReady;
+    Database.isReady = () => true;
+
+    try {
+      await it('Share Link Creation: Non-ObjectId roadmapId string (e.g. rf-climate-tech-verified) correctly queries DB and generates link', async () => {
+      const origFindOne = SavedRoadmap.findOne;
+      const origCreate = RoadmapShare.create;
+      let capturedQuery = null;
+
+      SavedRoadmap.findOne = async (query) => {
+        capturedQuery = query;
+        if (query.userId === 'user-owner') {
+          return {
+            _id: '507f1f77bcf86cd799439011',
+            userId: { toString: () => 'user-owner' },
+            roadmapId: 'rf-climate-tech-verified',
+          };
+        }
+        return null;
+      };
+
+      RoadmapShare.create = async (doc) => ({
+        _id: 'share-doc-id-123',
+        tokenPrefix: doc.tokenPrefix,
+        label: doc.label,
+        expiresAt: doc.expiresAt,
+        createdAt: new Date(),
+      });
+
+      try {
+        const req = {
+          params: { id: 'rf-climate-tech-verified' },
+          user: { userId: 'user-owner' },
+          body: { expiresInDays: 30, label: 'Climate Career' },
+        };
+        const res = createMockRes();
+
+        await RoadmapShareController.createShareLink(req, res);
+
+        assert.strictEqual(res.statusCode, 201);
+        assert.strictEqual(res.body.success, true);
+        assert.strictEqual(typeof res.body.data.shareUrl, 'string');
+        assert.strictEqual(res.body.data.shareUrl.includes('/share/'), true);
+
+        // Verify query structure: $or must NOT contain { _id: undefined }
+        assert.deepStrictEqual(capturedQuery.userId, 'user-owner');
+        assert.deepStrictEqual(capturedQuery.$or, [{ roadmapId: 'rf-climate-tech-verified' }]);
+      } finally {
+        SavedRoadmap.findOne = origFindOne;
+        RoadmapShare.create = origCreate;
+      }
+    });
+
+    await it('Share Link Creation: 24-character hexadecimal ObjectId correctly constructs query with both roadmapId and _id', async () => {
+      const origFindOne = SavedRoadmap.findOne;
+      const origCreate = RoadmapShare.create;
+      let capturedQuery = null;
+      const hexId = '507f1f77bcf86cd799439011';
+
+      SavedRoadmap.findOne = async (query) => {
+        capturedQuery = query;
+        return {
+          _id: hexId,
+          userId: { toString: () => 'user-owner' },
+          roadmapId: 'rm-persisted-custom',
+        };
+      };
+
+      RoadmapShare.create = async (doc) => ({
+        _id: 'share-doc-id-456',
+        tokenPrefix: doc.tokenPrefix,
+        label: doc.label,
+        expiresAt: doc.expiresAt,
+        createdAt: new Date(),
+      });
+
+      try {
+        const req = {
+          params: { id: hexId },
+          user: { userId: 'user-owner' },
+          body: {},
+        };
+        const res = createMockRes();
+
+        await RoadmapShareController.createShareLink(req, res);
+
+        assert.strictEqual(res.statusCode, 201);
+        assert.strictEqual(res.body.success, true);
+        assert.deepStrictEqual(capturedQuery.userId, 'user-owner');
+        assert.deepStrictEqual(capturedQuery.$or, [{ roadmapId: hexId }, { _id: hexId }]);
+      } finally {
+        SavedRoadmap.findOne = origFindOne;
+        RoadmapShare.create = origCreate;
+      }
+    });
+
+    await it('Multi-User Isolation: User B creates share link for their own roadmap when User A has identical roadmapId', async () => {
+      const origFindOne = SavedRoadmap.findOne;
+      const origCreate = RoadmapShare.create;
+      let capturedUserId = null;
+
+      // User A and User B both have 'rf-climate-tech-verified' in DB
+      SavedRoadmap.findOne = async (query) => {
+        if (query.userId === 'user-b') {
+          return {
+            _id: 'mongo-id-b',
+            userId: { toString: () => 'user-b' },
+            roadmapId: 'rf-climate-tech-verified',
+          };
+        }
+        if (query.userId === 'user-a' || !query.userId) {
+          return {
+            _id: 'mongo-id-a',
+            userId: { toString: () => 'user-a' },
+            roadmapId: 'rf-climate-tech-verified',
+          };
+        }
+        return null;
+      };
+
+      RoadmapShare.create = async (doc) => {
+        capturedUserId = doc.userId.toString();
+        return {
+          _id: 'share-doc-b',
+          tokenPrefix: doc.tokenPrefix,
+          label: doc.label,
+          expiresAt: doc.expiresAt,
+          createdAt: new Date(),
+        };
+      };
+
+      try {
+        const req = {
+          params: { id: 'rf-climate-tech-verified' },
+          user: { userId: 'user-b' },
+          body: { label: "User B's Climate Roadmap" },
+        };
+        const res = createMockRes();
+
+        await RoadmapShareController.createShareLink(req, res);
+
+        assert.strictEqual(res.statusCode, 201);
+        assert.strictEqual(res.body.success, true);
+        assert.strictEqual(capturedUserId, 'user-b');
+      } finally {
+        SavedRoadmap.findOne = origFindOne;
+        RoadmapShare.create = origCreate;
+      }
+    });
+
+    await it('Parameter Validation: "undefined" string roadmap ID parameter is rejected with HTTP 400', async () => {
+      const req = {
+        params: { id: 'undefined' },
+        user: { userId: 'user-owner' },
+        body: {},
+      };
+      const res = createMockRes();
+
+      await RoadmapShareController.createShareLink(req, res);
+
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(/Roadmap ID parameter is required/i.test(res.body.error), true);
+    });
+
+    await it('Non-Existent Roadmap: Returns HTTP 404 when roadmap does not exist in DB', async () => {
+      const origFindOne = SavedRoadmap.findOne;
+      SavedRoadmap.findOne = async () => null;
+
+      try {
+        const req = {
+          params: { id: 'non-existent-roadmap-999' },
+          user: { userId: 'user-owner' },
+          body: {},
+        };
+        const res = createMockRes();
+
+        await RoadmapShareController.createShareLink(req, res);
+
+        assert.strictEqual(res.statusCode, 404);
+        assert.strictEqual(res.body.success, false);
+        assert.strictEqual(res.body.error, 'Roadmap not found.');
+      } finally {
+        SavedRoadmap.findOne = origFindOne;
+      }
+    });
+
+    await it('Cross-User Authorization: Returns HTTP 403 when User A attempts to share User B roadmap', async () => {
+      const origFindOne = SavedRoadmap.findOne;
+      SavedRoadmap.findOne = async (query) => {
+        // Not found under user-a, but found globally under user-b
+        if (query.userId === 'user-a') return null;
+        return {
+          _id: 'mongo-id-b',
+          userId: { toString: () => 'user-b' },
+          roadmapId: 'rm-user-b-exclusive',
+        };
+      };
+
+      try {
+        const req = {
+          params: { id: 'rm-user-b-exclusive' },
+          user: { userId: 'user-a' },
+          body: {},
+        };
+        const res = createMockRes();
+
+        await RoadmapShareController.createShareLink(req, res);
+
+        assert.strictEqual(res.statusCode, 403);
+        assert.strictEqual(res.body.success, false);
+        assert.strictEqual(/access denied/i.test(res.body.error), true);
+      } finally {
+        SavedRoadmap.findOne = origFindOne;
+      }
+    });
+    } finally {
+      Database.isReady = origDbReady;
+    }
   } finally {
     testServer.close();
   }

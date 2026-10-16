@@ -39,26 +39,40 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Helper to extract the valid target identifier
+  const getTargetRoadmapId = () => {
+    const lastSavedId = useAuthStore.getState().lastSavedRoadmapId;
+    return (
+      roadmap?.id ||
+      (roadmap as any)?.roadmapId ||
+      lastSavedId ||
+      (roadmap as any)?._id ||
+      null
+    );
+  };
+
   // Fetch existing shares when modal opens
   useEffect(() => {
-    if (isOpen && isAuthenticated && roadmap?.id) {
+    const targetId = getTargetRoadmapId();
+    if (isOpen && isAuthenticated && targetId && targetId !== 'undefined') {
       fetchExistingShares();
     } else {
       setGeneratedUrl(null);
       setError(null);
       setSuccessMessage(null);
     }
-  }, [isOpen, isAuthenticated, roadmap?.id]);
+  }, [isOpen, isAuthenticated, roadmap?.id, (roadmap as any)?.roadmapId]);
 
   if (!isOpen) return null;
 
   const fetchExistingShares = async () => {
-    if (!roadmap?.id || !token) return;
+    const targetId = getTargetRoadmapId();
+    if (!targetId || targetId === 'undefined' || !token) return;
     setIsLoadingShares(true);
     setError(null);
 
     const result = await safeFetchJson<ApiResponse<ShareSummary[]>>(
-      `/api/v1/roadmaps/${roadmap.id}/shares`,
+      `/api/v1/roadmaps/${targetId}/shares`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -93,9 +107,24 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    // 2. Request backend share link generation
+    // 2. Identify the persisted roadmap ID reliably
+    const lastSavedId = useAuthStore.getState().lastSavedRoadmapId;
+    const currentRoadmap = useRoadmapStore.getState().roadmap || roadmap;
+    const targetId =
+      lastSavedId ||
+      currentRoadmap?.id ||
+      (currentRoadmap as any)?.roadmapId ||
+      (currentRoadmap as any)?._id;
+
+    if (!targetId || targetId === 'undefined') {
+      setIsGenerating(false);
+      setError('Unable to resolve valid roadmap identifier. Please save your roadmap and retry.');
+      return;
+    }
+
+    // 3. Request backend share link generation
     const result = await safeFetchJson<ApiResponse<CreateShareResponseData>>(
-      `/api/v1/roadmaps/${roadmap.id}/shares`,
+      `/api/v1/roadmaps/${targetId}/shares`,
       {
         method: 'POST',
         headers: {
@@ -134,11 +163,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleRevoke = async (shareId: string) => {
-    if (!roadmap?.id || !token) return;
+    const targetId = getTargetRoadmapId();
+    if (!targetId || targetId === 'undefined' || !token) return;
     setError(null);
 
     const result = await safeFetchJson<ApiResponse<any>>(
-      `/api/v1/roadmaps/${roadmap.id}/shares/${shareId}`,
+      `/api/v1/roadmaps/${targetId}/shares/${shareId}`,
       {
         method: 'DELETE',
         headers: {

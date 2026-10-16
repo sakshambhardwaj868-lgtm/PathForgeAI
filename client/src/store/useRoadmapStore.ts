@@ -124,8 +124,12 @@ export const useRoadmapStore = create<RoadmapStoreState>((set, get) => ({
   },
 
   setRoadmap: (rawRoadmap: CareerRoadmap) => {
+    const normalizedId = rawRoadmap.id || (rawRoadmap as any).roadmapId || (rawRoadmap as any)._id;
+    const roadmapWithId: CareerRoadmap = normalizedId && !rawRoadmap.id
+      ? { ...rawRoadmap, id: normalizedId }
+      : rawRoadmap;
     const { layoutDirection } = get();
-    const { roadmap, metrics } = recalculateRoadmapState(rawRoadmap);
+    const { roadmap, metrics } = recalculateRoadmapState(roadmapWithId);
     const { nodes, edges, stageGroups } = getLayoutedRoadmap(roadmap, { direction: layoutDirection });
 
     saveRoadmapToLocalStorage(roadmap);

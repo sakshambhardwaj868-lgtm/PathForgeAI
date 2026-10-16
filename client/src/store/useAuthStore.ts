@@ -41,6 +41,7 @@ interface AuthStoreState {
   deleteError: string | null;
   isSavingToCloud: boolean;
   lastSavedAt: string | null;
+  lastSavedRoadmapId: string | null;
 
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
@@ -73,6 +74,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   deleteError: null,
   isSavingToCloud: false,
   lastSavedAt: null,
+  lastSavedRoadmapId: null,
 
   openAuthModal: (mode = 'login') => {
     set({ isAuthModalOpen: true, authModalMode: mode });
@@ -158,6 +160,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       isAuthenticated: false,
       savedRoadmaps: [],
       lastSavedAt: null,
+      lastSavedRoadmapId: null,
       error: null,
     });
   },
@@ -221,9 +224,13 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
         return false;
       }
 
+      const savedDoc = result.data?.data;
+      const persistedId = savedDoc?.roadmapId || savedDoc?.id || savedDoc?._id;
+
       set({
         isSavingToCloud: false,
         lastSavedAt: new Date().toLocaleTimeString(),
+        lastSavedRoadmapId: persistedId || null,
       });
 
       // Refresh saved roadmaps list
@@ -311,7 +318,12 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       });
 
       if (result.ok && result.data?.success && result.data.data) {
-        return result.data.data as CareerRoadmap;
+        const raw = result.data.data;
+        const normalizedRoadmap: CareerRoadmap = {
+          ...raw,
+          id: raw.id || raw.roadmapId || raw._id,
+        };
+        return normalizedRoadmap;
       }
       return null;
     } catch {

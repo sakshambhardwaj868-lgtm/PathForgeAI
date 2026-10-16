@@ -79,7 +79,9 @@ const savedRoadmapSchema = new Schema<ISavedRoadmap>(
   {
     timestamps: true,
     toJSON: {
+      virtuals: true,
       transform: (_, ret: any) => {
+        ret.id = ret.roadmapId || ret._id?.toString();
         delete ret.__v;
         return ret;
       },
